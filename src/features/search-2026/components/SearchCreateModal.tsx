@@ -29,9 +29,10 @@ type FieldDef = {
 // type 은 createListingSchema enum 과 일치해야 함 (route.ts L37)
 const FIELDS: FieldDef[] = [
   { key: 'type', label: '매물종류', kind: 'select', required: true,
-    opts: ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '빌라', '사무실', '상가', '토지'] },
+    // 서버 createListingSchema enum 과 일치해야 함 — 토지/빌라 미지원(400 방지)
+    opts: ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '사무실', '상가'] },
   { key: 'deal', label: '거래유형', kind: 'select', required: true,
-    opts: ['월세', '전세', '전월세', '매매'] },
+    opts: ['월세', '전세', '매매'] },  // 서버 enum — 전월세 미지원
   { key: 'title', label: '제목', kind: 'text', full: true, required: true },
   { key: 'address', label: '주소', kind: 'text', full: true, required: true },
   { key: 'address_detail', label: '동·호수', kind: 'text' },

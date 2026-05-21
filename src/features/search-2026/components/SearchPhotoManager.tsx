@@ -30,8 +30,6 @@ export function SearchPhotoManager({ listingId }: SearchPhotoManagerProps) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
-  const uploadRef = useRef<HTMLButtonElement>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -52,29 +50,6 @@ export function SearchPhotoManager({ listingId }: SearchPhotoManagerProps) {
   }, [listingId]);
 
   useEffect(() => { load(); }, [load]);
-
-  // 접근성 — 마운트 시 포커스 + Tab 포커스 트랩 (패널 내 순환)
-  useEffect(() => {
-    uploadRef.current?.focus();
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab' || !panelRef.current) return;
-      const f = panelRef.current.querySelectorAll<HTMLElement>(
-        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-      );
-      const items = (Array.from(f) as HTMLElement[]).filter((el) => !el.hasAttribute('disabled'));
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault(); last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault(); first.focus();
-      }
-    };
-    const node = panelRef.current;
-    node?.addEventListener('keydown', onKey);
-    return () => { node?.removeEventListener('keydown', onKey); };
-  }, []);
 
   const upload = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -156,17 +131,10 @@ export function SearchPhotoManager({ listingId }: SearchPhotoManagerProps) {
   };
 
   return (
-    <div
-      ref={panelRef}
-      className={styles.wrap}
-      role="dialog"
-      aria-modal="true"
-      aria-label="매물 사진 관리"
-    >
+    <div className={styles.wrap}>
       <div className={styles.head}>
         <span className={styles.label}>매물 사진 {imgs.length > 0 ? `(${imgs.length}/20)` : ''}</span>
         <button
-          ref={uploadRef}
           type="button"
           className={styles.uploadBtn}
           onClick={() => fileRef.current?.click()}
