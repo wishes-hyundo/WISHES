@@ -30,6 +30,9 @@ export interface SearchListing {
   deposit?: number | null;
   monthly?: number | null;
   price?: number | null;
+  deposit_jeonse?: number | null;  // 복합거래 — 전세 옵션 보증금
+  monthly_alt?: number | null;     // 복합거래 — 월세 옵션 월세
+  deposit_alt?: number | null;     // 복합거래 — 월세 옵션 보증금
   maintenance_fee?: number | null;
   maintenance_includes?: string[] | null;  // 관리비 포함 항목 (수도·인터넷 등)
   parking_spaces?: number | null;
