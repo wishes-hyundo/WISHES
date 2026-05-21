@@ -10,6 +10,7 @@
 
 import { useEffect, useState } from 'react';
 import styles from './SearchEditModal.module.css';
+import { adminFetch } from '@/lib/adminFetch';
 
 export interface SearchCreateModalProps {
   onClose: () => void;
@@ -84,10 +85,10 @@ export function SearchCreateModal({ onClose, onCreated }: SearchCreateModalProps
       payload[f.key] = f.kind === 'num' ? Number(cur) : cur;
     });
     try {
-      const res = await fetch('/api/admin/listings', {
+      const res = await adminFetch('/api/admin/listings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        redirectOn401: false,
         body: JSON.stringify(payload),
       });
       const j = await res.json().catch(() => ({} as Record<string, unknown>));

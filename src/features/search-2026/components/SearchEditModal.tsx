@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import type { SearchListing } from '../types';
 import styles from './SearchEditModal.module.css';
+import { adminFetch } from '@/lib/adminFetch';
 import { SearchPhotoManager } from './SearchPhotoManager';
 
 export interface SearchEditModalProps {
@@ -89,10 +90,10 @@ export function SearchEditModal({ listing, onClose, onSaved }: SearchEditModalPr
     });
     if (Object.keys(fields).length === 0) { onClose(); return; }
     try {
-      const res = await fetch('/api/admin/listings-field-update', {
+      const res = await adminFetch('/api/admin/listings-field-update', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        redirectOn401: false,
         body: JSON.stringify({ id: listing.id, fields }),
       });
       const j = await res.json().catch(() => ({}));

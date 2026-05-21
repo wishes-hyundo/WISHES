@@ -10,6 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import styles from './SearchPhotoManager.module.css';
+import { adminFetch } from '@/lib/adminFetch';
 
 export interface SearchPhotoManagerProps {
   listingId: number;
@@ -34,7 +35,7 @@ export function SearchPhotoManager({ listingId }: SearchPhotoManagerProps) {
     setLoading(true);
     setErr('');
     try {
-      const res = await fetch(`/api/listings/${listingId}/images`, { credentials: 'include' });
+      const res = await adminFetch(`/api/listings/${listingId}/images`, { redirectOn401: false });
       const j = await res.json().catch(() => ({} as Record<string, unknown>));
       const data = (j as { data?: PhotoImg[] }).data;
       if ((j as { success?: boolean }).success && Array.isArray(data)) {
@@ -57,8 +58,8 @@ export function SearchPhotoManager({ listingId }: SearchPhotoManagerProps) {
     const fd = new FormData();
     Array.from(files).forEach((f) => fd.append('images', f));
     try {
-      const res = await fetch(`/api/listings/${listingId}/images`, {
-        method: 'POST', credentials: 'include', body: fd,
+      const res = await adminFetch(`/api/listings/${listingId}/images`, {
+        method: 'POST', redirectOn401: false, body: fd,
       });
       const j = await res.json().catch(() => ({} as Record<string, unknown>));
       if (!res.ok || (j as { success?: boolean }).success === false) {
@@ -78,10 +79,10 @@ export function SearchPhotoManager({ listingId }: SearchPhotoManagerProps) {
     setBusy(true);
     setErr('');
     try {
-      const res = await fetch(`/api/listings/${listingId}/images`, {
+      const res = await adminFetch(`/api/listings/${listingId}/images`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
+        redirectOn401: false,
         body: JSON.stringify({ images: payload }),
       });
       const j = await res.json().catch(() => ({} as Record<string, unknown>));
@@ -114,8 +115,8 @@ export function SearchPhotoManager({ listingId }: SearchPhotoManagerProps) {
     setBusy(true);
     setErr('');
     try {
-      const res = await fetch(`/api/listings/${listingId}/images?imageId=${id}`, {
-        method: 'DELETE', credentials: 'include',
+      const res = await adminFetch(`/api/listings/${listingId}/images?imageId=${id}`, {
+        method: 'DELETE', redirectOn401: false,
       });
       const j = await res.json().catch(() => ({} as Record<string, unknown>));
       if (!res.ok || (j as { success?: boolean }).success === false) {

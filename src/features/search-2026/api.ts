@@ -7,6 +7,7 @@
  */
 
 import type { SearchFilters, SearchListing, SearchPage } from './types';
+import { adminFetch } from '@/lib/adminFetch';
 
 const PAGE_ENDPOINT = '/api/admin/listings/page';
 const DETAIL_ENDPOINT = '/api/admin/listings'; // + /{id}
@@ -99,8 +100,10 @@ export async function fetchSearchListings(
   signal?: AbortSignal,
 ): Promise<SearchPage> {
   const params = buildListingsParams(filters, page, perPage);
-  const res = await fetch(`${PAGE_ENDPOINT}?${params.toString()}`, {
-    credentials: 'include',
+  // adminFetch: 쿠키 + Bearer(ws_token) + CSRF 동봉 — 토큰만 있고 쿠키 없는
+  //   브라우저(Edge 등)에서도 인증 통과. redirectOn401:false → 401 은 throw 로 처리.
+  const res = await adminFetch(`${PAGE_ENDPOINT}?${params.toString()}`, {
+    redirectOn401: false,
     signal,
   });
   if (!res.ok) throw new Error(`listings/page ${res.status}`);
@@ -128,8 +131,8 @@ export async function fetchListingDetail(
   id: number,
   signal?: AbortSignal,
 ): Promise<SearchListing> {
-  const res = await fetch(`${DETAIL_ENDPOINT}/${id}`, {
-    credentials: 'include',
+  const res = await adminFetch(`${DETAIL_ENDPOINT}/${id}`, {
+    redirectOn401: false,
     signal,
   });
   if (!res.ok) throw new Error(`listings/${id} ${res.status}`);
