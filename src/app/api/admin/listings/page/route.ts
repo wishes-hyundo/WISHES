@@ -252,6 +252,7 @@ export async function GET(request: NextRequest) {
       const escaped = q.replace(/[%_]/g, '\\$&');
       q1 = q1.or([
         'address.ilike.%' + escaped + '%',
+        'road_address.ilike.%' + escaped + '%',
         'address_detail.ilike.%' + escaped + '%',
         'building_name.ilike.%' + escaped + '%',
         'dong.ilike.%' + escaped + '%',
