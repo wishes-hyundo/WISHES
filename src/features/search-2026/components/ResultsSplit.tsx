@@ -16,6 +16,7 @@ import { groupByLocation, mergeUnitDeals } from '../format';
 import { ListingCard } from './ListingCard';
 import { ListingGroup } from './ListingGroup';
 import { SearchMap } from './SearchMap';
+import { SearchDetailModal } from './SearchDetailModal';
 import styles from './ResultsSplit.module.css';
 
 export interface ResultsSplitProps {
@@ -31,6 +32,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   const [sort, setSort] = useState('latest');
   const groups = useMemo(() => groupByLocation(mergeUnitDeals(listings)), [listings]);
   const listRef = useRef<HTMLDivElement>(null);
+  const [detail, setDetail] = useState<SearchListing | null>(null);
 
   const virt = useWindowVirtualizer({
     count: groups.length,
@@ -81,9 +83,9 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
                 style={{ transform: `translateY(${vi.start - scrollMargin}px)` }}
               >
                 {g.listings.length === 1 ? (
-                  <ListingCard listing={g.listings[0]} />
+                  <ListingCard listing={g.listings[0]} onClick={setDetail} />
                 ) : (
-                  <ListingGroup group={g} />
+                  <ListingGroup group={g} onCardClick={setDetail} />
                 )}
               </div>
             );
@@ -97,6 +99,8 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
           <SearchMap />
         </div>
       </div>
+
+      <SearchDetailModal listing={detail} onClose={() => setDetail(null)} />
     </div>
   );
 }

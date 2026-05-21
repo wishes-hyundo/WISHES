@@ -9,6 +9,7 @@
 
 import { useState } from 'react';
 import type { LocationGroup } from '../format';
+import type { SearchListing } from '../types';
 import { ListingCard } from './ListingCard';
 import styles from './ListingGroup.module.css';
 
@@ -17,7 +18,7 @@ export function ListingGroup({
   onCardClick,
 }: {
   group: LocationGroup;
-  onCardClick?: (id: number) => void;
+  onCardClick?: (listing: SearchListing) => void;
 }) {
   const [open, setOpen] = useState(true);
   return (

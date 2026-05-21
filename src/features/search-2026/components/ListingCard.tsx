@@ -15,7 +15,7 @@ import styles from './ListingCard.module.css';
 
 export interface ListingCardProps {
   listing: SearchListing;
-  onClick?: (id: number) => void;
+  onClick?: (listing: SearchListing) => void;
 }
 
 const DEAL_TONE: Record<string, string> = {
@@ -89,7 +89,7 @@ export function ListingCard({ listing, onClick }: ListingCardProps) {
   if (listing.building_name) tags.push(String(listing.building_name));
 
   return (
-    <button type="button" className={styles.card} onClick={() => onClick?.(listing.id)}>
+    <button type="button" className={styles.card} onClick={() => onClick?.(listing)}>
       <div className={styles.thumb}>
         {thumb ? (
           <img src={thumb} alt="" className={styles.thumbImg} loading="lazy" />
