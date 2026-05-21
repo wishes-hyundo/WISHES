@@ -264,7 +264,7 @@ interface FeatureDatum {
 }
 
 export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegionLayerProps) {
-  const polysRef = useRef<KakaoPolygon[]>([]);
+  const polyRef = useRef<KakaoPolygon[]>([]);     // 강조 폴리곤 1개(멀티파트 포함)
   const bubblesRef = useRef<KakaoOverlay[]>([]);
   const [fdata, setFdata] = useState<FeatureDatum[] | null>(null);
 
@@ -360,68 +360,71 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, tier, active, loadKey]);
 
-  // ── Effect 2 — 경계 폴리곤(전 구역) + 개수 버블(겹침 제거) ────
+  // 지도 중심 키 — 팬 시 강조 폴리곤 갱신 트리거
+  const centerKey = bbox
+    ? `${((bbox.south + bbox.north) / 2).toFixed(3)},${((bbox.west + bbox.east) / 2).toFixed(3)}`
+    : '';
+
+  // ── Effect 2 — 강조 폴리곤 1개 (다방 방식: 지도 중심 구역만 칠함) ──
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
     const maps = win.kakao?.maps;
     if (!maps) return;
 
-    const clearAll = () => {
-      for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
-      for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
-      polysRef.current = [];
-      bubblesRef.current = [];
+    const clearPoly = () => {
+      for (const p of polyRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+      polyRef.current = [];
     };
-    clearAll();
-    if (!active || !fdata) return () => clearAll();
+    clearPoly();
+    if (!active || !fdata || !bbox) return () => clearPoly();
 
-    // 1) 경계 폴리곤 — 매물 있는 전 구역. 채움 없이 또렷한 경계선만.
-    //    한 동이 여러 조각이면 한 덩어리로(부스러기 8% 미만 제거, 그룹 hover).
-    for (const d of fdata) {
-      let maxArea = 0;
-      for (const poly of d.polys) maxArea = Math.max(maxArea, ringBboxArea(poly[0]));
-      const drawPolys = d.polys.filter((poly) => ringBboxArea(poly[0]) >= maxArea * 0.08);
-      const group: KakaoPolygon[] = [];
-      for (const poly of (drawPolys.length > 0 ? drawPolys : d.polys)) {
-        const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
-        const kp = new maps.Polygon({
-          path,
-          strokeWeight: 1.5,
-          strokeColor: '#5f7d6a',
-          strokeOpacity: 0.85,
-          strokeStyle: 'solid',
-          fillColor: '#3f8a55',
-          fillOpacity: 0.05,
-          zIndex: 1,
-        });
-        kp.setMap(map);
-        polysRef.current.push(kp);
-        group.push(kp);
-      }
-      const setGroup = (fo: number, sc: string, sw: number) => {
-        for (const g of group) { try { g.setOptions?.({ fillOpacity: fo, strokeColor: sc, strokeWeight: sw }); } catch { /* noop */ } }
-      };
-      for (const kp of group) {
-        maps.event.addListener(kp, 'mouseover', () => setGroup(0.16, '#2f7a47', 2.6));
-        maps.event.addListener(kp, 'mouseout', () => setGroup(0.05, '#5f7d6a', 1.5));
-        maps.event.addListener(kp, 'click', (e) => {
-          const m = map as KakaoMapLike;
-          const ll = e?.latLng;
-          if (m.setLevel && m.getLevel && ll) {
-            const next = Math.max(1, (m.getLevel() ?? 10) - 3);
-            try { m.setLevel(next, { anchor: ll, animate: true }); }
-            catch { try { m.setLevel(next); } catch { /* noop */ } }
-          }
-        });
-      }
+    const cLat = (bbox.south + bbox.north) / 2;
+    const cLng = (bbox.west + bbox.east) / 2;
+    const hit = fdata.find((d) => featureContains(d.polys, cLng, cLat));
+    if (!hit) return () => clearPoly();
+
+    let maxArea = 0;
+    for (const poly of hit.polys) maxArea = Math.max(maxArea, ringBboxArea(poly[0]));
+    const draw = hit.polys.filter((poly) => ringBboxArea(poly[0]) >= maxArea * 0.08);
+    for (const poly of (draw.length > 0 ? draw : hit.polys)) {
+      const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
+      const kp = new maps.Polygon({
+        path,
+        strokeWeight: 2.2,
+        strokeColor: '#2f7a47',
+        strokeOpacity: 0.92,
+        strokeStyle: 'solid',
+        fillColor: '#3f8a55',
+        fillOpacity: 0.15,
+        zIndex: 1,
+      });
+      kp.setMap(map);
+      polyRef.current.push(kp);
     }
 
-    // 2) 개수 버블 — 다방식. 겹치면 개수 큰 쪽 우선, 작은 쪽 버블 생략(경계는 유지).
+    return () => clearPoly();
+  }, [map, active, fdata, centerKey]);
+
+  // ── Effect 3 — 개수 버블 (전 구역, 겹침 제거) ────────────────
+  useEffect(() => {
+    if (!map) return;
+    const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
+    const maps = win.kakao?.maps;
+    if (!maps) return;
+
+    const clearBubbles = () => {
+      for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
+      bubblesRef.current = [];
+    };
+    clearBubbles();
+    if (!active || !fdata) return () => clearBubbles();
+
     const proj = (map as { getProjection?: () => { pointFromCoords: (c: unknown) => { x: number; y: number } } })
       .getProjection?.();
     const cand = [...fdata].sort((a, b) => b.count - a.count);
     const placed: Array<{ x: number; y: number }> = [];
+
     for (const d of cand) {
       let x: number, y: number;
       if (proj) {
@@ -465,14 +468,14 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       bubblesRef.current.push(ov);
     }
 
-    return () => clearAll();
+    return () => clearBubbles();
   }, [map, tier, active, fdata, level]);
 
   useEffect(() => {
     return () => {
-      for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+      for (const p of polyRef.current) { try { p.setMap(null); } catch { /* noop */ } }
       for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
-      polysRef.current = [];
+      polyRef.current = [];
       bubblesRef.current = [];
     };
   }, []);
