@@ -260,20 +260,21 @@ interface FeatureDatum {
   label: { lat: number; lng: number };
   count: number;
   name: string;
+  polys: Poly[];
 }
 
 export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegionLayerProps) {
+  const polysRef = useRef<KakaoPolygon[]>([]);
   const bubblesRef = useRef<KakaoOverlay[]>([]);
   const [fdata, setFdata] = useState<FeatureDatum[] | null>(null);
 
   useEffect(() => { injectStyle(); }, []);
 
-  // 동 tier 는 viewport 변경 시 청크 재로드 — 거친 bbox 키 (≈10km 셀)
   const loadKey = tier === 'dong' && bbox
     ? `d:${bbox.west.toFixed(1)},${bbox.south.toFixed(1)},${bbox.east.toFixed(1)},${bbox.north.toFixed(1)}`
     : tier;
 
-  // ── Effect 1 — 구역 데이터(라벨점 + 개수) 산출 ────────────────
+  // ── Effect 1 — 구역 데이터(경계 폴리곤 + 라벨점 + 개수) ──────
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
@@ -313,7 +314,6 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       const fbboxes = features.map(featureBbox);
       const fpolys = features.map(featurePolys);
 
-      // 개수 — 클러스터 fetch + bbox prefilter point-in-polygon
       const counts = new Map<number, number>();
       try {
         const url = tier === 'dong' && bbox
@@ -338,7 +338,6 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       } catch { /* 개수 실패 무시 */ }
       if (disposed || !active) return;
 
-      // 매물 있는 구역만 — 라벨점은 폴리곤 안쪽(polylabel/centroid)
       const fds: FeatureDatum[] = [];
       features.forEach((f, fi) => {
         const count = counts.get(fi) ?? 0;
@@ -350,7 +349,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
           if (a > bigArea) { bigArea = a; big = p; }
         }
         const label = tier === 'sido' ? polylabel(big) : cheapCentroid(big);
-        fds.push({ label, count, name: shortName(String(f.properties.name ?? '')) });
+        fds.push({ label, count, name: shortName(String(f.properties.name ?? '')), polys });
       });
 
       if (disposed) return;
@@ -361,27 +360,68 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, tier, active, loadKey]);
 
-  // ── Effect 2 — 개수 버블만 (다방식: 폴리곤 없음). 겹침 제거 + 줌 재배치 ──
+  // ── Effect 2 — 경계 폴리곤(전 구역) + 개수 버블(겹침 제거) ────
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
     const maps = win.kakao?.maps;
     if (!maps) return;
 
-    const clearBubbles = () => {
+    const clearAll = () => {
+      for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
       for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
+      polysRef.current = [];
       bubblesRef.current = [];
     };
-    clearBubbles();
-    if (!active || !fdata) return () => clearBubbles();
+    clearAll();
+    if (!active || !fdata) return () => clearAll();
 
+    // 1) 경계 폴리곤 — 매물 있는 전 구역. 채움 없이 또렷한 경계선만.
+    //    한 동이 여러 조각이면 한 덩어리로(부스러기 8% 미만 제거, 그룹 hover).
+    for (const d of fdata) {
+      let maxArea = 0;
+      for (const poly of d.polys) maxArea = Math.max(maxArea, ringBboxArea(poly[0]));
+      const drawPolys = d.polys.filter((poly) => ringBboxArea(poly[0]) >= maxArea * 0.08);
+      const group: KakaoPolygon[] = [];
+      for (const poly of (drawPolys.length > 0 ? drawPolys : d.polys)) {
+        const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
+        const kp = new maps.Polygon({
+          path,
+          strokeWeight: 1.5,
+          strokeColor: '#5f7d6a',
+          strokeOpacity: 0.85,
+          strokeStyle: 'solid',
+          fillColor: '#3f8a55',
+          fillOpacity: 0.05,
+          zIndex: 1,
+        });
+        kp.setMap(map);
+        polysRef.current.push(kp);
+        group.push(kp);
+      }
+      const setGroup = (fo: number, sc: string, sw: number) => {
+        for (const g of group) { try { g.setOptions?.({ fillOpacity: fo, strokeColor: sc, strokeWeight: sw }); } catch { /* noop */ } }
+      };
+      for (const kp of group) {
+        maps.event.addListener(kp, 'mouseover', () => setGroup(0.16, '#2f7a47', 2.6));
+        maps.event.addListener(kp, 'mouseout', () => setGroup(0.05, '#5f7d6a', 1.5));
+        maps.event.addListener(kp, 'click', (e) => {
+          const m = map as KakaoMapLike;
+          const ll = e?.latLng;
+          if (m.setLevel && m.getLevel && ll) {
+            const next = Math.max(1, (m.getLevel() ?? 10) - 3);
+            try { m.setLevel(next, { anchor: ll, animate: true }); }
+            catch { try { m.setLevel(next); } catch { /* noop */ } }
+          }
+        });
+      }
+    }
+
+    // 2) 개수 버블 — 다방식. 겹치면 개수 큰 쪽 우선, 작은 쪽 버블 생략(경계는 유지).
     const proj = (map as { getProjection?: () => { pointFromCoords: (c: unknown) => { x: number; y: number } } })
       .getProjection?.();
-
-    // 개수 큰 구역 우선 — 라벨이 겹치면 작은 쪽 생략
     const cand = [...fdata].sort((a, b) => b.count - a.count);
     const placed: Array<{ x: number; y: number }> = [];
-
     for (const d of cand) {
       let x: number, y: number;
       if (proj) {
@@ -425,12 +465,14 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       bubblesRef.current.push(ov);
     }
 
-    return () => clearBubbles();
+    return () => clearAll();
   }, [map, tier, active, fdata, level]);
 
   useEffect(() => {
     return () => {
+      for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
       for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
+      polysRef.current = [];
       bubblesRef.current = [];
     };
   }, []);
