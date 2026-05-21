@@ -249,6 +249,7 @@ interface FeatureDatum {
   label: { lat: number; lng: number };
   count: number;
   name: string;
+  polys: Poly[];
 }
 
 export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegionLayerProps) {
@@ -263,21 +264,15 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     ? `d:${bbox.west.toFixed(1)},${bbox.south.toFixed(1)},${bbox.east.toFixed(1)},${bbox.north.toFixed(1)}`
     : tier;
 
-  // ── Effect 1 — 폴리곤 + 구역 데이터 ──────────────────────────
+  // ── Effect 1 — 구역 데이터 산출 (폴리곤·버블은 Effect 2 가 함께 그림) ──
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
-    const maps = win.kakao?.maps;
-    if (!maps) return;
+    if (!win.kakao?.maps) return;
 
     let disposed = false;
-    const clearPolys = () => {
-      for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
-      polysRef.current = [];
-    };
-
     if (!active || (tier === 'dong' && !bbox)) {
-      clearPolys(); setFdata(null);
+      setFdata(null);
       return () => { disposed = true; };
     }
 
@@ -302,17 +297,15 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
         if (disposed || !geo || !active) return;
         features = geo.features;
       }
-      // 동 tier — viewport 에 걸친 동만 (폴리곤 수 제한, freeze 방지)
       if (tier === 'dong' && bbox) {
         features = features.filter((f) => bboxHit(featureBbox(f), bbox));
       }
       if (disposed || !active || features.length === 0) { if (!disposed) setFdata([]); return; }
 
-      // feature bbox 사전계산 (개수 집계 prefilter용)
       const fbboxes = features.map(featureBbox);
       const fpolys = features.map(featurePolys);
 
-      // 2) 개수 — tier 별 클러스터 fetch + bbox prefilter point-in-polygon
+      // 2) 개수 — 클러스터 fetch + bbox prefilter point-in-polygon
       const counts = new Map<number, number>();
       try {
         const url = tier === 'dong' && bbox
@@ -334,99 +327,57 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
             }
           }
         }
-      } catch { /* 개수 실패해도 폴리곤은 그림 */ }
+      } catch { /* 개수 실패 무시 */ }
       if (disposed || !active) return;
 
-      // 3) 그리기 — 정밀 경계(점 솎기 없음) + 균일 소프트 fill.
-      //   가격 초플레스(호갱노노식)는 후속 토글 레이어로 분리. 기본은 깔끔하게.
-      clearPolys();
+      // 3) 매물 있는 구역만 데이터화 (그리기는 Effect 2)
       const fds: FeatureDatum[] = [];
-
       features.forEach((f, fi) => {
-        const polys = fpolys[fi];
         const count = counts.get(fi) ?? 0;
-        // 매물 0건 구역은 폴리곤·버블 모두 생략 — 빈 폴리곤 시각 노이즈 제거.
-        //   "폴리곤이 보이면 그 구역에 매물이 있다" 가 일관 규칙.
         if (count <= 0) return;
-
-        const baseFill = 0.20;
-        for (const poly of polys) {
-          const path = poly.map((ring) =>
-            ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
-          const kp = new maps.Polygon({
-            path,
-            strokeWeight: 1.6,
-            strokeColor: '#3a6b48',
-            strokeOpacity: 0.62,
-            strokeStyle: 'solid',
-            fillColor: '#5a9e6e',
-            fillOpacity: baseFill,
-            zIndex: 1,
-          });
-          kp.setMap(map);
-          polysRef.current.push(kp);
-          // hover 하이라이트 — 커서 밑 구역 강조 (네이버·호갱노노 패턴)
-          maps.event.addListener(kp, 'mouseover', () => {
-            try { kp.setOptions?.({ fillOpacity: Math.min(0.82, baseFill + 0.26), strokeWeight: 2.5 }); }
-            catch { /* noop */ }
-          });
-          maps.event.addListener(kp, 'mouseout', () => {
-            try { kp.setOptions?.({ fillOpacity: baseFill, strokeWeight: 1.5 }); }
-            catch { /* noop */ }
-          });
-          // 폴리곤 클릭 = 그 지점으로 줌인
-          maps.event.addListener(kp, 'click', (e) => {
-            const m = map as KakaoMapLike;
-            const ll = e?.latLng;
-            if (m.setLevel && m.getLevel && ll) {
-              const next = Math.max(1, (m.getLevel() ?? 10) - 3);
-              try { m.setLevel(next, { anchor: ll, animate: true }); }
-              catch { try { m.setLevel(next); } catch { /* noop */ } }
-            }
-          });
-        }
-
+        const polys = fpolys[fi];
         let big = polys[0], bigArea = 0;
         for (const p of polys) {
           const a = ringBboxArea(p[0]);
           if (a > bigArea) { bigArea = a; big = p; }
         }
-        // 라벨점 — 시도만 polylabel(C자형 경기 대응), 구·동은 저비용 centroid
         const label = tier === 'sido' ? polylabel(big) : cheapCentroid(big);
-        fds.push({
-          label,
-          count,
-          name: shortName(String(f.properties.name ?? '')),
-        });
+        fds.push({ label, count, name: shortName(String(f.properties.name ?? '')), polys });
       });
 
       if (disposed) return;
       setFdata(fds);
     })();
 
-    return () => { disposed = true; clearPolys(); };
+    return () => { disposed = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, tier, active, loadKey]);
 
-  // ── Effect 2 — 개수 버블 (겹침 제거, 줌 변경 시 재배치) ──────
+  // ── Effect 2 — 폴리곤 + 버블 함께 그림 (겹침 제거 생존분만) ──────
+  //   핵심: 폴리곤과 버블을 한 세트로. 버블이 겹쳐 생략되면 폴리곤도 생략 →
+  //   "내용 없는 빈 폴리곤" 이 생기지 않음. 줌 변경 시 재배치.
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
     const maps = win.kakao?.maps;
     if (!maps) return;
 
-    const clearBubbles = () => {
+    const clearAll = () => {
+      for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
       for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
+      polysRef.current = [];
       bubblesRef.current = [];
     };
-    clearBubbles();
-    if (!active || !fdata) return () => clearBubbles();
+    clearAll();
+    if (!active || !fdata) return () => clearAll();
 
     const proj = (map as { getProjection?: () => { pointFromCoords: (c: unknown) => { x: number; y: number } } })
       .getProjection?.();
 
-    const cand = fdata.filter((d) => d.count > 0).sort((a, b) => b.count - a.count);
+    // 개수 큰 구역 우선 — 라벨이 겹치면 작은 쪽은 폴리곤·버블 모두 생략
+    const cand = [...fdata].sort((a, b) => b.count - a.count);
     const placed: Array<{ x: number; y: number }> = [];
+    const BASE_FILL = 0.20;
 
     for (const d of cand) {
       let x: number, y: number;
@@ -443,12 +394,45 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       if (collide) continue;
       placed.push({ x, y });
 
+      // 폴리곤 (구멍 포함, 정밀 경계)
+      for (const poly of d.polys) {
+        const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
+        const kp = new maps.Polygon({
+          path,
+          strokeWeight: 1.6,
+          strokeColor: '#3a6b48',
+          strokeOpacity: 0.62,
+          strokeStyle: 'solid',
+          fillColor: '#5a9e6e',
+          fillOpacity: BASE_FILL,
+          zIndex: 1,
+        });
+        kp.setMap(map);
+        polysRef.current.push(kp);
+        maps.event.addListener(kp, 'mouseover', () => {
+          try { kp.setOptions?.({ fillOpacity: 0.46, strokeWeight: 2.6 }); } catch { /* noop */ }
+        });
+        maps.event.addListener(kp, 'mouseout', () => {
+          try { kp.setOptions?.({ fillOpacity: BASE_FILL, strokeWeight: 1.6 }); } catch { /* noop */ }
+        });
+        maps.event.addListener(kp, 'click', (e) => {
+          const m = map as KakaoMapLike;
+          const ll = e?.latLng;
+          if (m.setLevel && m.getLevel && ll) {
+            const next = Math.max(1, (m.getLevel() ?? 10) - 3);
+            try { m.setLevel(next, { anchor: ll, animate: true }); }
+            catch { try { m.setLevel(next); } catch { /* noop */ } }
+          }
+        });
+      }
+
+      // 개수 버블
+      const lp = d.label;
       const el = document.createElement('div');
       el.className = 'srl-bubble';
       el.innerHTML =
         `<span class="srl-rname">${d.name}</span>` +
         `<span class="srl-rcount">${fmtCount(d.count)}</span>`;
-      const lp = d.label;
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         const m = map as KakaoMapLike;
@@ -471,7 +455,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       bubblesRef.current.push(ov);
     }
 
-    return () => clearBubbles();
+    return () => clearAll();
   }, [map, tier, active, fdata, level]);
 
   useEffect(() => {
