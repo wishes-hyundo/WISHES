@@ -4,15 +4,15 @@
  * SearchRegionLayer — /search 행정구역 폴리곤 + 개수 (P5 줌 1~3단계)
  *
  * 줌 단계별 표기 시스템의 광역~동 단계.
- *   1단계 시·도  — /api/geo/sido    폴리곤 + 시·도별 개수
- *   2단계 시·군·구 — /api/geo/sigungu 폴리곤 + 구별 개수
- *   3단계 읍·면·동 — /api/geo/dong    폴리곤 + 동별 개수
+ *   1단계 시·도  — /api/geo/sido
+ *   2단계 시·군·구 — /api/geo/sigungu
+ *   3단계 읍·면·동 — /api/geo/dong
  *
  * 설계:
  *   · map-2026 store 비의존 — /search 전용 자체완결.
- *   · 행정구역 GeoJSON 폴리곤 + 5분위 초플레스(개수 밀도) fill.
- *   · 개수는 /api/map/clusters(서버 사전집계) 를 point-in-polygon 으로 구역 배분.
- *   · 구역 centroid 에 개수 버블(CustomOverlay). 버블/폴리곤 클릭 = 줌인.
+ *   · 행정구역 GeoJSON 폴리곤(구멍 포함) + 5분위 초플레스 fill.
+ *   · 개수 = /api/map/clusters 를 point-in-polygon 으로 구역 배분.
+ *   · 라벨 위치 = polylabel(pole of inaccessibility) — 항상 폴리곤 내부, 겹침 없음.
  *   · /map 의 AdminRegionOverlay 는 손대지 않음.
  */
 
@@ -35,7 +35,11 @@ interface GeoFeature {
 }
 interface GeoCollection { type: 'FeatureCollection'; features: GeoFeature[] }
 
-// ── GeoJSON 캐시 (모듈 레벨) ─────────────────────────────────
+// 한 폴리곤 = ring 배열 (ring[0]=외곽, 나머지=구멍). 좌표는 [lng,lat].
+type Ring = number[][];
+type Poly = Ring[];
+
+// ── GeoJSON 캐시 ─────────────────────────────────────────────
 const geoCache: Partial<Record<RegionTier, GeoCollection>> = {};
 const geoPending: Partial<Record<RegionTier, Promise<GeoCollection | null>>> = {};
 async function loadGeo(tier: RegionTier): Promise<GeoCollection | null> {
@@ -50,12 +54,20 @@ async function loadGeo(tier: RegionTier): Promise<GeoCollection | null> {
   return p;
 }
 
-// ── 기하 유틸 ────────────────────────────────────────────────
-function outerRings(f: GeoFeature): number[][][] {
-  if (f.geometry.type === 'Polygon') return [f.geometry.coordinates[0]];
-  return f.geometry.coordinates.map((poly) => poly[0]);
+// ── 기하 ─────────────────────────────────────────────────────
+function featurePolys(f: GeoFeature): Poly[] {
+  if (f.geometry.type === 'Polygon') return [f.geometry.coordinates];
+  return f.geometry.coordinates;
 }
-function inRing(lng: number, lat: number, ring: number[][]): boolean {
+function ringBboxArea(ring: Ring): number {
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of ring) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  return (maxX - minX) * (maxY - minY);
+}
+function inRing(lng: number, lat: number, ring: Ring): boolean {
   let inside = false;
   for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
     const xi = ring[i][0], yi = ring[i][1], xj = ring[j][0], yj = ring[j][1];
@@ -65,30 +77,84 @@ function inRing(lng: number, lat: number, ring: number[][]): boolean {
   }
   return inside;
 }
-function featureContains(rings: number[][][], lng: number, lat: number): boolean {
-  return rings.some((r) => inRing(lng, lat, r));
-}
-// 라벨 위치 — 가장 큰 ring 의 bbox 중심
-function labelPoint(rings: number[][][]): { lat: number; lng: number } {
-  let best = rings[0], bestLen = 0;
-  for (const r of rings) if (r.length > bestLen) { bestLen = r.length; best = r; }
-  let minLng = Infinity, maxLng = -Infinity, minLat = Infinity, maxLat = -Infinity;
-  for (const [lng, lat] of best) {
-    if (lng < minLng) minLng = lng;
-    if (lng > maxLng) maxLng = lng;
-    if (lat < minLat) minLat = lat;
-    if (lat > maxLat) maxLat = lat;
+function featureContains(polys: Poly[], lng: number, lat: number): boolean {
+  for (const poly of polys) {
+    if (!inRing(lng, lat, poly[0])) continue;
+    let inHole = false;
+    for (let h = 1; h < poly.length; h++) {
+      if (inRing(lng, lat, poly[h])) { inHole = true; break; }
+    }
+    if (!inHole) return true;
   }
-  return { lat: (minLat + maxLat) / 2, lng: (minLng + maxLng) / 2 };
+  return false;
 }
 
-// ── 5분위 초플레스 색상 (개수 밀도) ──────────────────────────
+// polylabel — 폴리곤 내부에서 모든 변으로부터 가장 먼 점 (라벨 최적 위치)
+function segDist2(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  let dx = bx - ax, dy = by - ay;
+  if (dx !== 0 || dy !== 0) {
+    const t = ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy);
+    if (t > 1) { ax = bx; ay = by; } else if (t > 0) { ax += dx * t; ay += dy * t; }
+  }
+  dx = px - ax; dy = py - ay;
+  return dx * dx + dy * dy;
+}
+function signedDist(x: number, y: number, poly: Poly): number {
+  let inside = false, minD2 = Infinity;
+  for (const ring of poly) {
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[i], b = ring[j];
+      if (((a[1] > y) !== (b[1] > y)) &&
+          (x < ((b[0] - a[0]) * (y - a[1])) / (b[1] - a[1]) + a[0])) inside = !inside;
+      const d2 = segDist2(x, y, a[0], a[1], b[0], b[1]);
+      if (d2 < minD2) minD2 = d2;
+    }
+  }
+  return (inside ? 1 : -1) * Math.sqrt(minD2);
+}
+function polylabel(poly: Poly): { lat: number; lng: number } {
+  const outer = poly[0];
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  for (const [x, y] of outer) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  const w = maxX - minX, h = maxY - minY;
+  const cell = Math.min(w, h);
+  if (cell === 0) return { lng: minX, lat: minY };
+  const half = cell / 2;
+  const mk = (cx: number, cy: number, hh: number) => {
+    const d = signedDist(cx, cy, poly);
+    return { cx, cy, h: hh, d, max: d + hh * Math.SQRT2 };
+  };
+  const queue: ReturnType<typeof mk>[] = [];
+  for (let x = minX; x < maxX; x += cell) {
+    for (let y = minY; y < maxY; y += cell) queue.push(mk(x + half, y + half, half));
+  }
+  let best = mk((minX + maxX) / 2, (minY + maxY) / 2, 0);
+  const precision = cell / 60;
+  let guard = 0;
+  while (queue.length && guard < 12000) {
+    guard++;
+    queue.sort((a, b) => a.max - b.max);
+    const c = queue.pop()!;
+    if (c.d > best.d) best = c;
+    if (c.max - best.d <= precision) continue;
+    const hh = c.h / 2;
+    queue.push(mk(c.cx - hh, c.cy - hh, hh), mk(c.cx + hh, c.cy - hh, hh),
+               mk(c.cx - hh, c.cy + hh, hh), mk(c.cx + hh, c.cy + hh, hh));
+  }
+  return { lat: best.cy, lng: best.cx };
+}
+
+// ── 5분위 초플레스 ───────────────────────────────────────────
 const CHORO = ['#e4efe1', '#c1dbaf', '#8dbf80', '#56985e', '#2d6e42'];
-function quantileClass(value: number, sorted: number[]): number {
-  if (sorted.length === 0) return 0;
-  const idx = sorted.findIndex((v) => v >= value);
-  const rank = idx < 0 ? sorted.length - 1 : idx;
-  return Math.min(4, Math.floor((rank / sorted.length) * 5));
+// 0 = 매물 없음(연함), 1~4 = 비영(非零) 구역 순위 분위
+function choroClass(count: number, nonzeroSorted: number[]): number {
+  if (count <= 0 || nonzeroSorted.length === 0) return 0;
+  const rank = nonzeroSorted.findIndex((v) => v >= count);
+  const r = rank < 0 ? nonzeroSorted.length - 1 : rank;
+  return Math.min(4, 1 + Math.floor((r / Math.max(1, nonzeroSorted.length)) * 4));
 }
 
 function fmtCount(n: number): string {
@@ -101,24 +167,23 @@ function fmtCount(n: number): string {
 function shortName(name: string): string {
   return name
     .replace('특별자치시', '').replace('특별자치도', '')
-    .replace('특별시', '').replace('광역시', '')
-    .replace('도', '');
+    .replace('특별시', '').replace('광역시', '').replace(/도$/, '');
 }
 
-// ── 스타일 (주입 1회) ────────────────────────────────────────
+// ── 스타일 ───────────────────────────────────────────────────
 const STYLE_ID = 'wishes-search-region-style';
 const STYLE_CSS = `
 .srl-bubble{
   display:flex;flex-direction:column;align-items:center;
-  padding:5px 12px;border-radius:13px;cursor:pointer;
-  background:rgba(255,255,255,0.96);
-  box-shadow:0 2px 7px rgba(16,40,24,0.20),0 0 0 0.5px rgba(16,40,24,0.06);
+  padding:5px 13px;border-radius:14px;cursor:pointer;
+  background:rgba(255,255,255,0.97);
+  box-shadow:0 3px 10px rgba(16,40,24,0.24),0 0 0 0.5px rgba(16,40,24,0.07);
   font-family:-apple-system,BlinkMacSystemFont,'SF Pro Text','Pretendard',sans-serif;
   transition:transform .16s cubic-bezier(.16,1,.3,1);
 }
-.srl-bubble:hover{transform:scale(1.06);}
+.srl-bubble:hover{transform:scale(1.07);}
 .srl-rname{font-size:11px;font-weight:500;color:#5a6b60;letter-spacing:-0.01em;line-height:1.2;}
-.srl-rcount{font-size:14px;font-weight:700;color:#235b34;letter-spacing:-0.02em;line-height:1.25;}
+.srl-rcount{font-size:14.5px;font-weight:700;color:#235b34;letter-spacing:-0.02em;line-height:1.25;}
 `;
 function injectStyle(): void {
   if (typeof document === 'undefined' || document.getElementById(STYLE_ID)) return;
@@ -128,7 +193,7 @@ function injectStyle(): void {
   document.head.appendChild(el);
 }
 
-// ── Kakao 타입 (최소) ────────────────────────────────────────
+// ── Kakao 타입 ───────────────────────────────────────────────
 interface KakaoLatLng { /* opaque */ }
 interface KakaoPolygon { setMap: (m: unknown) => void }
 interface KakaoOverlay { setMap: (m: unknown) => void }
@@ -146,7 +211,6 @@ interface KakaoMapLike {
 export interface SearchRegionLayerProps {
   map: unknown;
   tier: RegionTier;
-  /** 이 레이어를 그릴지 — 줌 단계 게이팅 결과 */
   active: boolean;
 }
 
@@ -163,7 +227,6 @@ export function SearchRegionLayer({ map, tier, active }: SearchRegionLayerProps)
     if (!maps) return;
 
     let disposed = false;
-
     const clearAll = () => {
       for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
       for (const o of overlaysRef.current) { try { o.setMap(null); } catch { /* noop */ } }
@@ -180,16 +243,15 @@ export function SearchRegionLayer({ map, tier, active }: SearchRegionLayerProps)
       // 개수 — 전국 클러스터를 point-in-polygon 으로 구역 배분
       const counts = new Map<number, number>();
       try {
-        const qs = 'swLat=32.9&swLng=124.5&neLat=38.8&neLng=131.0&zoom=7';
-        const res = await fetch(`/api/map/clusters?${qs}`);
+        const res = await fetch('/api/map/clusters?swLat=32.9&swLng=124.5&neLat=38.8&neLng=131.0&zoom=7');
         if (res.ok) {
           const json = await res.json();
           const clusters: Array<{ lat: number; lng: number; count: number }> =
             Array.isArray(json?.data) ? json.data : [];
-          const ringsByIdx = geo.features.map(outerRings);
+          const polysByIdx = geo.features.map(featurePolys);
           for (const c of clusters) {
-            for (let fi = 0; fi < ringsByIdx.length; fi++) {
-              if (featureContains(ringsByIdx[fi], c.lng, c.lat)) {
+            for (let fi = 0; fi < polysByIdx.length; fi++) {
+              if (featureContains(polysByIdx[fi], c.lng, c.lat)) {
                 counts.set(fi, (counts.get(fi) ?? 0) + c.count);
                 break;
               }
@@ -199,32 +261,39 @@ export function SearchRegionLayer({ map, tier, active }: SearchRegionLayerProps)
       } catch { /* 개수 실패해도 폴리곤은 그림 */ }
       if (disposed || !active) return;
 
-      const sortedCounts = [...counts.values()].sort((a, b) => a - b);
+      const nonzero = [...counts.values()].filter((v) => v > 0).sort((a, b) => a - b);
       clearAll();
 
       geo.features.forEach((f, fi) => {
-        const rings = outerRings(f);
+        const polys = featurePolys(f);
         const count = counts.get(fi) ?? 0;
-        const cls = quantileClass(count, sortedCounts);
+        const cls = choroClass(count, nonzero);
 
-        for (const ring of rings) {
-          const path = ring.map(([lng, lat]) => new maps.LatLng(lat, lng));
-          const poly = new maps.Polygon({
+        for (const poly of polys) {
+          // path: 외곽 + 구멍 (Kakao Polygon 다중 ring 지원)
+          const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
+          const kp = new maps.Polygon({
             path,
-            strokeWeight: 1.6,
-            strokeColor: '#ffffff',
-            strokeOpacity: 0.95,
+            strokeWeight: 1.5,
+            strokeColor: '#3f6b4c',
+            strokeOpacity: 0.55,
             strokeStyle: 'solid',
             fillColor: CHORO[cls],
-            fillOpacity: 0.46,
+            fillOpacity: count > 0 ? 0.52 : 0.16,
             zIndex: 1,
           });
-          poly.setMap(map);
-          polysRef.current.push(poly);
+          kp.setMap(map);
+          polysRef.current.push(kp);
         }
 
         if (count > 0) {
-          const lp = labelPoint(rings);
+          // 가장 큰 폴리곤에 라벨 (polylabel)
+          let big = polys[0], bigArea = 0;
+          for (const p of polys) {
+            const a = ringBboxArea(p[0]);
+            if (a > bigArea) { bigArea = a; big = p; }
+          }
+          const lp = polylabel(big);
           const name = shortName(String(f.properties.name ?? ''));
           const el = document.createElement('div');
           el.className = 'srl-bubble';
