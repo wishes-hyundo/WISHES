@@ -206,13 +206,13 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         pool={flatListings}
         onOpenListing={openListing}
         onEdit={(l) => setEditListing(l)}
-        favorited={detailListing ? favMap.has(detailListing.id) : false}
-        onToggleFavorite={() => {
-          if (!detailListing) return;
+        favorited={(detailListing?.id ?? detailId) != null
+          && favMap.has((detailListing?.id ?? detailId) as number)}
+        onToggleFavorite={(l) => {
           setFavMap((prev) => {
             const m = new Map(prev);
-            if (m.has(detailListing.id)) m.delete(detailListing.id);
-            else m.set(detailListing.id, detailListing);
+            if (m.has(l.id)) m.delete(l.id);
+            else m.set(l.id, l);
             return m;
           });
         }}

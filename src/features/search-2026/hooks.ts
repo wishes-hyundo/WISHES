@@ -8,6 +8,7 @@
  * 기준: ★search_완전기능명세서.md §3, §8.
  */
 
+import { useMemo } from 'react';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import { fetchListingDetail, fetchSearchListings } from './api';
 import { DEFAULT_PER_PAGE, type SearchFilters, type SearchListing, type SearchPage } from './types';
@@ -28,11 +29,13 @@ export function useSearchListings(filters: SearchFilters, perPage: number = DEFA
       !/\b40[13]\b/.test(String((err as Error)?.message ?? '')) && count < 2,
   });
 
-  // 페이지 경계에서 같은 id 가 중복될 수 있어 — 첫 등장만 남기고 중복 제거.
-  const seenIds = new Set<number>();
-  const listings: SearchListing[] = (query.data?.pages ?? [])
-    .flatMap((p) => p.listings)
-    .filter((l) => (seenIds.has(l.id) ? false : (seenIds.add(l.id), true)));
+  // 페이지 경계 중복 제거 — useMemo 로 안정적 배열 참조 유지(하위 memo 보존).
+  const listings: SearchListing[] = useMemo(() => {
+    const seen = new Set<number>();
+    return (query.data?.pages ?? [])
+      .flatMap((p) => p.listings)
+      .filter((l) => (seen.has(l.id) ? false : (seen.add(l.id), true)));
+  }, [query.data?.pages]);
   const total: number = query.data?.pages?.[0]?.total ?? 0;
 
   return { ...query, listings, total };

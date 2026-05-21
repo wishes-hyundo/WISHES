@@ -28,7 +28,7 @@ export interface SearchDetailModalProps {
   /** 관심 매물 여부 (부모 제어 — 미지정 시 로컬 상태로 동작) */
   favorited?: boolean;
   /** 관심 토글 콜백 (부모 제어 — 미지정 시 로컬 상태로 동작) */
-  onToggleFavorite?: () => void;
+  onToggleFavorite?: (l: SearchListing) => void;
 }
 
 const DEAL_TONE: Record<string, string> = {
@@ -107,6 +107,13 @@ export function SearchDetailModal({
   // MA-3: 메모 저장 디바운스 — 글자마다 localStorage 쓰기 방지.
   const memoSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [memoTags, setMemoTags] = useState<string[]>([]);
+  // 디바운스 저장이 최신 태그를 쓰도록 ref 미러.
+  const memoTagsRef = useRef<string[]>([]);
+  memoTagsRef.current = memoTags;
+  // 디바운스 저장 타이머 — 언마운트 시 정리(누수·언마운트 후 발화 방지).
+  useEffect(() => () => {
+    if (memoSaveTimer.current) clearTimeout(memoSaveTimer.current);
+  }, []);
   const open = listing != null || id != null;
   const activeId = listing?.id ?? id ?? null;
 
@@ -188,7 +195,7 @@ export function SearchDetailModal({
         type="button"
         className={`${styles.iconBtn} ${styles.fav} ${isFav ? styles.on : ''}`}
         onClick={() => {
-          if (favControlled) onToggleFavorite?.();
+          if (favControlled) { if (l) onToggleFavorite?.(l); }
           else setFav((v) => !v);
         }}
         aria-label="관심"
@@ -488,7 +495,7 @@ export function SearchDetailModal({
                       try {
                         localStorage.setItem(
                           `wishes-memo-${activeId}`,
-                          JSON.stringify({ memo: v, tags: memoTags }),
+                          JSON.stringify({ memo: v, tags: memoTagsRef.current }),
                         );
                       } catch { /* noop */ }
                     }, 350);
