@@ -14,6 +14,7 @@ import { SearchHeader } from '@/features/search-2026/components/SearchHeader';
 import { FilterBar } from '@/features/search-2026/components/FilterBar';
 import { ResultsSplit } from '@/features/search-2026/components/ResultsSplit';
 import { useSearchStore } from '@/features/search-2026/store';
+import { useSearchListings } from '@/features/search-2026/hooks';
 import { type SearchView } from '@/features/search-2026/components/ViewTabs';
 import { type SearchListing } from '@/features/search-2026/types';
 
@@ -40,6 +41,16 @@ export default function SearchPreviewPage() {
   const [view, setView] = useState<SearchView>('split');
   const { filters } = useSearchStore();
 
+  // 실데이터 — 로그인(ws_session 쿠키) 시 /api/admin/listings/page 무한스크롤.
+  //   미인증/실패 시 검증용 mock 으로 폴백 → preview 는 항상 화면이 보임.
+  const {
+    listings: realListings, total: realTotal,
+    fetchNextPage, hasNextPage, isFetchingNextPage, isError,
+  } = useSearchListings(filters);
+  const useReal = !isError && realListings.length > 0;
+  const listings = useReal ? realListings : MOCK;
+  const total = useReal ? realTotal : 73445;
+
   return (
     <div
       style={{
@@ -58,7 +69,13 @@ export default function SearchPreviewPage() {
         onViewChange={setView}
       />
       <FilterBar />
-      <ResultsSplit listings={MOCK} total={73445} />
+      <ResultsSplit
+        listings={listings}
+        total={total}
+        onLoadMore={useReal ? () => { void fetchNextPage(); } : undefined}
+        hasMore={useReal && !!hasNextPage}
+        loadingMore={isFetchingNextPage}
+      />
     </div>
   );
 }

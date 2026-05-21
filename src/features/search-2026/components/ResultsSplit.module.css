@@ -34,7 +34,9 @@
   background-position: right 10px center;
 }
 .sortSel:focus { outline: none; border-color: #2d6a34; box-shadow: 0 0 0 3px rgba(45, 106, 52, 0.12); }
-.cards { display: flex; flex-direction: column; gap: 7px; }
+.cards { position: relative; width: 100%; }
+.vrow { position: absolute; top: 0; left: 0; width: 100%; padding-bottom: 7px; box-sizing: border-box; }
+.loadingMore { text-align: center; font-size: 12px; color: #8b9097; padding: 14px 0 4px; letter-spacing: -0.01em; }
 
 /* 지도 컬럼 — 데스크탑에서 스크롤 시 고정 */
 .mapCol {
