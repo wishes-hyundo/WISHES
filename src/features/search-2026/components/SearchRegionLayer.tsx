@@ -20,6 +20,8 @@ import { useEffect, useRef } from 'react';
 
 export type RegionTier = 'sido' | 'sigungu' | 'dong';
 
+const COUNT_ZOOM: Record<RegionTier, number> = { sido: 7, sigungu: 9, dong: 11 };
+
 const GEO_URL: Record<RegionTier, string> = {
   sido: '/api/geo/sido',
   sigungu: '/api/geo/sigungu',
@@ -243,7 +245,7 @@ export function SearchRegionLayer({ map, tier, active }: SearchRegionLayerProps)
       // 개수 — 전국 클러스터를 point-in-polygon 으로 구역 배분
       const counts = new Map<number, number>();
       try {
-        const res = await fetch('/api/map/clusters?swLat=32.9&swLng=124.5&neLat=38.8&neLng=131.0&zoom=7');
+        const res = await fetch('/api/map/clusters?swLat=32.9&swLng=124.5&neLat=38.8&neLng=131.0&zoom=' + COUNT_ZOOM[tier]);
         if (res.ok) {
           const json = await res.json();
           const clusters: Array<{ lat: number; lng: number; count: number }> =

@@ -230,10 +230,14 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
       <div ref={containerRef} className={styles.canvas} />
       {ready && kakaoMap ? (
         <>
-          {/* 줌 1단계 — 시·도 폴리곤 + 개수 (level >= 10) */}
-          <SearchRegionLayer map={kakaoMap} tier="sido" active={kakaoLevel >= 10} />
-          {/* 클러스터·개별 핀 — 좁은 줌 (level < 10) */}
-          {kakaoLevel < 10 && (
+          {/* 줌 1~2단계 — 시·도(level>=11) / 시·군·구(level 8~10) 폴리곤 + 개수 */}
+          <SearchRegionLayer
+            map={kakaoMap}
+            tier={kakaoLevel >= 11 ? 'sido' : 'sigungu'}
+            active={kakaoLevel >= 8}
+          />
+          {/* 클러스터·개별 핀 — 좁은 줌 (level < 8) */}
+          {kakaoLevel < 8 && (
             <SearchClusterLayer
               map={kakaoMap}
               clusters={clusters}
