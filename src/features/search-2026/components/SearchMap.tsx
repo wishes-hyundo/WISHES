@@ -235,6 +235,7 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
             map={kakaoMap}
             tier={kakaoLevel >= 11 ? 'sido' : 'sigungu'}
             active={kakaoLevel >= 8}
+            level={kakaoLevel}
           />
           {/* 클러스터·개별 핀 — 좁은 줌 (level < 8) */}
           {kakaoLevel < 8 && (

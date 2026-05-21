@@ -16,7 +16,7 @@
  *   · /map 의 AdminRegionOverlay 는 손대지 않음.
  */
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 export type RegionTier = 'sido' | 'sigungu' | 'dong';
 
@@ -214,14 +214,24 @@ export interface SearchRegionLayerProps {
   map: unknown;
   tier: RegionTier;
   active: boolean;
+  /** 현재 카카오 줌 레벨 — 버블 겹침 재배치 트리거 */
+  level: number;
 }
 
-export function SearchRegionLayer({ map, tier, active }: SearchRegionLayerProps) {
+interface FeatureDatum {
+  label: { lat: number; lng: number };
+  count: number;
+  name: string;
+}
+
+export function SearchRegionLayer({ map, tier, active, level }: SearchRegionLayerProps) {
   const polysRef = useRef<KakaoPolygon[]>([]);
-  const overlaysRef = useRef<KakaoOverlay[]>([]);
+  const bubblesRef = useRef<KakaoOverlay[]>([]);
+  const [fdata, setFdata] = useState<FeatureDatum[] | null>(null);
 
   useEffect(() => { injectStyle(); }, []);
 
+  // ── Effect 1 — 폴리곤 그리기 + 구역 데이터 산출 (tier/active 변경 시) ──
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
@@ -229,20 +239,17 @@ export function SearchRegionLayer({ map, tier, active }: SearchRegionLayerProps)
     if (!maps) return;
 
     let disposed = false;
-    const clearAll = () => {
+    const clearPolys = () => {
       for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
-      for (const o of overlaysRef.current) { try { o.setMap(null); } catch { /* noop */ } }
       polysRef.current = [];
-      overlaysRef.current = [];
     };
 
-    if (!active) { clearAll(); return () => { disposed = true; }; }
+    if (!active) { clearPolys(); setFdata(null); return () => { disposed = true; }; }
 
     (async () => {
       const geo = await loadGeo(tier);
       if (disposed || !geo || !active) return;
 
-      // 개수 — 전국 클러스터를 point-in-polygon 으로 구역 배분
       const counts = new Map<number, number>();
       try {
         const res = await fetch('/api/map/clusters?swLat=32.9&swLng=124.5&neLat=38.8&neLng=131.0&zoom=' + COUNT_ZOOM[tier]);
@@ -264,7 +271,8 @@ export function SearchRegionLayer({ map, tier, active }: SearchRegionLayerProps)
       if (disposed || !active) return;
 
       const nonzero = [...counts.values()].filter((v) => v > 0).sort((a, b) => a - b);
-      clearAll();
+      clearPolys();
+      const fds: FeatureDatum[] = [];
 
       geo.features.forEach((f, fi) => {
         const polys = featurePolys(f);
@@ -272,7 +280,6 @@ export function SearchRegionLayer({ map, tier, active }: SearchRegionLayerProps)
         const cls = choroClass(count, nonzero);
 
         for (const poly of polys) {
-          // path: 외곽 + 구멍 (Kakao Polygon 다중 ring 지원)
           const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
           const kp = new maps.Polygon({
             path,
@@ -288,49 +295,101 @@ export function SearchRegionLayer({ map, tier, active }: SearchRegionLayerProps)
           polysRef.current.push(kp);
         }
 
-        if (count > 0) {
-          // 가장 큰 폴리곤에 라벨 (polylabel)
-          let big = polys[0], bigArea = 0;
-          for (const p of polys) {
-            const a = ringBboxArea(p[0]);
-            if (a > bigArea) { bigArea = a; big = p; }
-          }
-          const lp = polylabel(big);
-          const name = shortName(String(f.properties.name ?? ''));
-          const el = document.createElement('div');
-          el.className = 'srl-bubble';
-          el.innerHTML =
-            `<span class="srl-rname">${name}</span>` +
-            `<span class="srl-rcount">${fmtCount(count)}</span>`;
-          el.addEventListener('click', (e) => {
-            e.stopPropagation();
-            const m = map as KakaoMapLike;
-            if (m.setLevel && m.getLevel) {
-              const ll = new maps.LatLng(lp.lat, lp.lng);
-              const next = Math.max(1, (m.getLevel() ?? 10) - 3);
-              try { m.setLevel(next, { anchor: ll, animate: true }); }
-              catch { try { m.setLevel(next); } catch { /* noop */ } }
-              try { m.panTo?.(ll); } catch { /* noop */ }
-            }
-          });
-          const ov = new maps.CustomOverlay({
-            position: new maps.LatLng(lp.lat, lp.lng),
-            content: el,
-            xAnchor: 0.5,
-            yAnchor: 0.5,
-            zIndex: 5,
-          });
-          ov.setMap(map);
-          overlaysRef.current.push(ov);
+        let big = polys[0], bigArea = 0;
+        for (const p of polys) {
+          const a = ringBboxArea(p[0]);
+          if (a > bigArea) { bigArea = a; big = p; }
         }
+        fds.push({
+          label: polylabel(big),
+          count,
+          name: shortName(String(f.properties.name ?? '')),
+        });
       });
+
+      if (disposed) return;
+      setFdata(fds);
     })();
 
-    return () => {
-      disposed = true;
-      clearAll();
-    };
+    return () => { disposed = true; clearPolys(); };
   }, [map, tier, active]);
+
+  // ── Effect 2 — 개수 버블 (겹침 제거, 줌 변경 시 재배치) ──────────
+  useEffect(() => {
+    if (!map) return;
+    const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
+    const maps = win.kakao?.maps;
+    if (!maps) return;
+
+    const clearBubbles = () => {
+      for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
+      bubblesRef.current = [];
+    };
+    clearBubbles();
+    if (!active || !fdata) return () => clearBubbles();
+
+    const proj = (map as { getProjection?: () => { pointFromCoords: (c: unknown) => { x: number; y: number } } })
+      .getProjection?.();
+
+    // 개수 큰 구역 우선 — 겹치면 작은 쪽 생략
+    const cand = fdata.filter((d) => d.count > 0).sort((a, b) => b.count - a.count);
+    const placed: Array<{ x: number; y: number }> = [];
+
+    for (const d of cand) {
+      let x: number, y: number;
+      if (proj) {
+        const p = proj.pointFromCoords(new maps.LatLng(d.label.lat, d.label.lng) as unknown);
+        x = p.x; y = p.y;
+      } else {
+        x = d.label.lng * 100000; y = -d.label.lat * 100000;
+      }
+      let collide = false;
+      for (const q of placed) {
+        if (Math.abs(q.x - x) < 66 && Math.abs(q.y - y) < 42) { collide = true; break; }
+      }
+      if (collide) continue;
+      placed.push({ x, y });
+
+      const el = document.createElement('div');
+      el.className = 'srl-bubble';
+      el.innerHTML =
+        `<span class="srl-rname">${d.name}</span>` +
+        `<span class="srl-rcount">${fmtCount(d.count)}</span>`;
+      const lp = d.label;
+      el.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const m = map as KakaoMapLike;
+        if (m.setLevel && m.getLevel) {
+          const ll = new maps.LatLng(lp.lat, lp.lng);
+          const next = Math.max(1, (m.getLevel() ?? 10) - 3);
+          try { m.setLevel(next, { anchor: ll, animate: true }); }
+          catch { try { m.setLevel(next); } catch { /* noop */ } }
+          try { m.panTo?.(ll); } catch { /* noop */ }
+        }
+      });
+      const ov = new maps.CustomOverlay({
+        position: new maps.LatLng(lp.lat, lp.lng),
+        content: el,
+        xAnchor: 0.5,
+        yAnchor: 0.5,
+        zIndex: 5,
+      });
+      ov.setMap(map);
+      bubblesRef.current.push(ov);
+    }
+
+    return () => clearBubbles();
+  }, [map, tier, active, fdata, level]);
+
+  // 언마운트 정리
+  useEffect(() => {
+    return () => {
+      for (const p of polysRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+      for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
+      polysRef.current = [];
+      bubblesRef.current = [];
+    };
+  }, []);
 
   return null;
 }
