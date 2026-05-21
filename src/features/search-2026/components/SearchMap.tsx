@@ -216,6 +216,19 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
     [onSelectListing],
   );
 
+  // -- 줌 +/- 버튼 (SW-7 후속) --
+  //   delta -1 = 확대(레벨 감소), +1 = 축소. setMinLevel/MaxLevel 범위는 SDK 가 클램프.
+  const zoomBy = useCallback((delta: number) => {
+    const m = kakaoMapRef.current as {
+      getLevel?: () => number;
+      setLevel?: (n: number, opts?: Record<string, unknown>) => void;
+    } | null;
+    if (!m?.getLevel || !m.setLevel) return;
+    const next = m.getLevel() + delta;
+    try { m.setLevel(next, { animate: true }); }
+    catch { try { m.setLevel(next); } catch { /* noop */ } }
+  }, []);
+
   if (failed) {
     return (
       <div className={styles.fallback}>
@@ -228,6 +241,23 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
   return (
     <div className={styles.mapRoot}>
       <div ref={containerRef} className={styles.canvas} />
+      {ready && kakaoMap && (
+        <div className={styles.zoomCtl}>
+          <button
+            type="button"
+            className={styles.zoomBtn}
+            onClick={() => zoomBy(-1)}
+            aria-label="확대"
+          >+</button>
+          <span className={styles.zoomDiv} />
+          <button
+            type="button"
+            className={styles.zoomBtn}
+            onClick={() => zoomBy(1)}
+            aria-label="축소"
+          >−</button>
+        </div>
+      )}
       {ready && kakaoMap ? (
         <>
           {/* 줌 1~3단계 — 시·도(>=11) / 시·군·구(8~10) / 읍·면·동(6~7) 폴리곤 + 개수 */}
