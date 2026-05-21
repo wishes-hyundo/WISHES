@@ -14,11 +14,14 @@
 //   [Body  ] 거래유형 · 사진있음 · Quick 칩 (카테고리별) · FilterAccordion
 //   [Footer] 전체 해제 + "N개 매물 보기" (클릭 시 모달 닫기)
 //
-// 키보드: ESC → 닫기. 바깥 클릭 → 닫기.
+// 키보드: ESC → 닫기. X 버튼 → 닫기.
+//   ※ [2026-05-22 정밀감사 M10] 바깥(지도) 클릭 닫기는 의도적으로 없음 —
+//     백드롭을 두지 않아 패널이 열린 채로 지도 pan/zoom 이 가능해야 하므로.
+//     (이전 주석의 "바깥 클릭 → 닫기" 는 실제 코드와 불일치하여 정정함.)
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { Image as ImageIcon, X, Home, Building2, Trees, TrendingUp } from 'lucide-react';
 import type { ComponentType, SVGProps } from 'react';
 import {
@@ -52,9 +55,14 @@ export function FilterModal() {
   const setFilter = useMap2026Store((s) => s.setFilter);
   const clearFilter = useMap2026Store((s) => s.clearFilter);
   const listings = useMap2026Store((s) => s.listings);
+  // [2026-05-22 정밀감사 M1] 푸터 카운트를 viewport 전체 매물 수로 단일화.
+  //   기존 listings.length 는 page API limit=50 에 막혀 "50개 매물 보기" 로
+  //   고정 → 리스트 헤더(1,208) 와 불일치. viewportTotal 이 진짜 총계.
+  const viewportTotal = useMap2026Store((s) => s.viewportTotal);
 
   const theme = CATEGORY_THEME[filter.category];
   const activeCount = countActiveFilters(filter);
+  const matchCount = viewportTotal ?? listings.length;
 
   // ESC → 닫기
   useEffect(() => {
@@ -65,6 +73,14 @@ export function FilterModal() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open, close]);
+
+  // [2026-05-22 정밀감사 M10] 모달 오픈 시 키보드 포커스를 패널로 이동.
+  //   비차단 패널(aria-modal=false)이라 focus trap 은 두지 않되,
+  //   키보드 사용자가 패널 컨트롤에 바로 접근하도록 닫기 버튼에 초기 포커스.
+  const closeBtnRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (open) closeBtnRef.current?.focus();
+  }, [open]);
 
   // L-filterpanel1 (2026-04-23 p.m.): body scroll lock 제거
   //   슬라이드 패널로 바뀌면서 지도 영역은 계속 인터랙티브 유지.
@@ -107,6 +123,7 @@ export function FilterModal() {
             </h2>
           </div>
           <button
+            ref={closeBtnRef}
             onClick={close}
             aria-label="닫기"
             // L-touchaaa1 (2026-05-02): WCAG 2.2 AAA 터치 타깃 44px (size-11) on mobile
@@ -211,7 +228,7 @@ export function FilterModal() {
               theme.accent,
             ].join(' ')}
           >
-            <span>{listings.length.toLocaleString('ko-KR')}개 매물 보기</span>
+            <span>{matchCount.toLocaleString('ko-KR')}개 매물 보기</span>
           </button>
         </footer>
       </div>

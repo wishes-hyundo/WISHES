@@ -51,13 +51,21 @@ function photoRank(l: MapListing): number {
   return l.thumbnail_url ? 0 : 1;
 }
 
+// [2026-05-22 정밀감사 M8] created_at 이 null/비정상 값일 때 NaN 비교로
+//   정렬이 불안정해지던 문제 — 안전한 타임스탬프 추출 헬퍼.
+function safeTime(v: string | null | undefined): number {
+  if (!v) return 0;
+  const t = new Date(v).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
 function sortListings(list: MapListing[], sort: SortKey): MapListing[] {
   const copy = [...list];
   const tieBreak = (a: MapListing, b: MapListing) => photoRank(a) - photoRank(b);
   switch (sort) {
     case 'recent':
       copy.sort((a, b) => {
-        const d = new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        const d = safeTime(b.created_at) - safeTime(a.created_at);
         return d !== 0 ? d : tieBreak(a, b);
       });
       break;
@@ -262,14 +270,24 @@ export function ListPanel() {
   // L-listpanel-select1 (2026-04-24 pm): 매물 선택 시 해당 카드로 자동 스크롤.
   //   virtualizer 상 그 index 가 viewport 밖이면 사용자가 "어떤 매물인지" 못 찾음.
   //   detailListingId 나 selectedId 가 바뀌면 scrollToIndex 로 가시권에 가져온다.
+  // [2026-05-22 정밀감사 M7] 기존 effect 의존성에 매 viewport 재조회마다 새로
+  //   생성되는 `sorted` 배열이 포함돼, 사용자가 리스트를 스크롤하는 도중에도
+  //   100ms 마다 강제 smooth-scroll 점프가 발생했음.
+  //   수정: focusId 가 실제로 바뀐 1회만 스크롤 (lastScrolled ref 가드).
+  //   sorted 는 ref 로 최신값 참조 — 재조회로 인한 effect 재실행 차단.
   const focusId = detailListingId ?? selectedId;
+  const sortedRef = useRef(sorted);
+  sortedRef.current = sorted;
+  const lastScrolledFocusRef = useRef<number | null>(null);
   useEffect(() => {
-    if (focusId == null) return;
-    const idx = sorted.findIndex((l) => l.id === focusId);
+    if (focusId == null) { lastScrolledFocusRef.current = null; return; }
+    if (lastScrolledFocusRef.current === focusId) return;
+    const idx = sortedRef.current.findIndex((l) => l.id === focusId);
     if (idx >= 0) {
+      lastScrolledFocusRef.current = focusId;
       rowVirtualizer.scrollToIndex(idx, { align: 'center', behavior: 'smooth' });
     }
-  }, [focusId, sorted, rowVirtualizer]);
+  }, [focusId, sorted.length, rowVirtualizer]);
 
   return (
     <aside className="flex h-full flex-col overflow-hidden border-r border-neutral-100 bg-white">

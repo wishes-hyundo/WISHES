@@ -52,6 +52,8 @@ export function ActiveFilterPills() {
   // 🏢 상가/사무실 용도 (카테고리가 retail_office 일 때만 유효)
   filter.purposes.forEach((p) => {
     const meta = COMMERCIAL_PURPOSE_LABEL[p];
+    // [2026-05-22 정밀감사] stale purpose 방어 — 알 수 없는 키면 pill 건너뜀.
+    if (!meta) return;
     pills.push({
       key: `purpose-${p}`,
       label: `${meta.emoji} ${meta.label}`,
@@ -100,7 +102,7 @@ export function ActiveFilterPills() {
   if (filter.minMonthly != null || filter.maxMonthly != null) {
     pills.push({
       key: 'monthly',
-      label: rangeLabel('월세', filter.minMonthly, filter.maxMonthly, (n) => String(n), '만'),
+      label: rangeLabel('월세', filter.minMonthly, filter.maxMonthly, (n) => n.toLocaleString('ko-KR'), '만'),
       clear: () => setFilter({ minMonthly: null, maxMonthly: null }),
     });
   }

@@ -53,6 +53,11 @@ export function CategoryTabs() {
   // L-ux3e (2026-04-22): WAI-ARIA tab 패턴 — 키보드 사용자가
   //   ←/→ 로 탭 사이를 이동, Home/End 로 첫/끝 탭 점프하도록.
   //   이전에는 Tab 으로 4회 눌러야만 탭 사이 전환이 가능했음.
+  // [2026-05-22 정밀감사 H1] 방향키 이동 시 openFilterModal() 호출 제거.
+  //   기존: ←/→ 누를 때마다 FilterModal 강제 오픈 → 키보드 사용자가 탭만
+  //   훑어보려 해도 모달이 폭격됨 (WAI-ARIA tabs 패턴 위반).
+  //   수정: 방향키 = 포커스 이동 + 카테고리 전환(automatic activation)만.
+  //   모달은 Enter/Space/클릭 시에만 (onClick 핸들러가 담당).
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const handleTabKey = (e: KeyboardEvent<HTMLButtonElement>, idx: number) => {
     let next = -1;
@@ -66,7 +71,6 @@ export function CategoryTabs() {
     if (target) {
       target.focus();
       setCategory(ORDER[next]);
-      openFilterModal();
       if (map) zoomPulse(map);
     }
   };

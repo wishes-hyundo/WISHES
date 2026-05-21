@@ -13,7 +13,7 @@
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Plus, Minus, LocateFixed } from 'lucide-react';
 import { useMap2026Store } from '../store';
 
@@ -28,9 +28,23 @@ export function MapControls() {
   const [locating, setLocating] = useState(false);
   const [locateError, setLocateError] = useState<string | null>(null);
 
+  // [2026-05-22 정밀감사 M5] showError 타이머 누수 수정.
+  //   기존: setTimeout 핸들 미추적 → 연속 에러 시 이전 타이머가 새 에러를
+  //   조기 소멸시키고, 언마운트 후에도 setState 시도.
+  //   수정: ref 로 타이머 추적 + 새 호출 시 clear + 언마운트 cleanup.
+  const errorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+    };
+  }, []);
   const showError = (msg: string) => {
+    if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
     setLocateError(msg);
-    setTimeout(() => setLocateError(null), 5000);
+    errorTimerRef.current = setTimeout(() => {
+      setLocateError(null);
+      errorTimerRef.current = null;
+    }, 5000);
   };
 
   const zoomIn = () => {

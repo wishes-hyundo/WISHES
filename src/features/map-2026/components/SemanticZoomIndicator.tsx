@@ -21,13 +21,8 @@ const LABELS: Record<ZoomMode, string> = {
   '3d': '건물 뷰',
 };
 
-// L-kakao2: HINT 전면 제거 (내용이 실제 동작과 불일치 상태였음)
-const HINTS: Record<ZoomMode, string | null> = {
-  'hexagon-low': null,
-  'hexagon-mid': null,
-  'pins': null,
-  '3d': null,
-};
+// L-kakao2: HINT 전면 제거 (내용이 실제 동작과 불일치 상태였음).
+// [2026-05-22 정밀감사 L5] 전부 null 이던 HINTS 상수 + 죽은 렌더 분기 제거.
 
 export function SemanticZoomIndicator() {
   const mode = useMap2026Store((s) => s.mode);
@@ -36,20 +31,12 @@ export function SemanticZoomIndicator() {
 
   if (!bbox) return null;
 
-  const hint = HINTS[mode];
-
   return (
     <div
       className="group absolute top-3 left-3 z-20 flex max-w-[calc(100%-5rem)] items-center gap-1.5 overflow-hidden whitespace-nowrap rounded-full bg-white/85 px-2.5 py-1 text-[11.5px] opacity-60 shadow-sm backdrop-blur transition hover:opacity-100 focus-within:opacity-100"
     >
       <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
       <span className="shrink-0 font-semibold text-neutral-900">{LABELS[mode]}</span>
-      {hint && (
-        <>
-          <span className="hidden shrink-0 text-neutral-300 md:inline">·</span>
-          <span className="hidden truncate text-neutral-500 md:inline">{hint}</span>
-        </>
-      )}
       <span className="ml-0.5 shrink-0 rounded bg-neutral-100 px-1.5 py-0.5 text-[10px] tabular-nums text-neutral-500">
         z{Math.round(zoom)}
       </span>

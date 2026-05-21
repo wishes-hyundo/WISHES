@@ -443,8 +443,12 @@ export function ListingDetailModal() {
     // 이미 cached 또는 listings 에 있으면 fetch 불필요
     const found = cachedListing ?? listings.find((l) => l.id === detailListingId) ?? null;
     if (found) { setFallbackListing(null); return; }
+    // [2026-05-22 정밀감사 H3] AbortController 추가 — 매물을 빠르게 전환할 때
+    //   이전 매물의 stale 응답이 늦게 도착해 fetch 가 낭비되던 문제 차단.
+    //   (cancelled 플래그로 setState 는 이미 가드되나, 요청 자체도 취소.)
+    const ac = new AbortController();
     // /api/listings/[id] 로 fetch — 응답 형식이 MapListing 과 거의 호환
-    fetch(`/api/listings/${detailListingId}`)
+    fetch(`/api/listings/${detailListingId}`, { signal: ac.signal })
       .then((r) => r.ok ? r.json() : null)
       .then((j) => {
         if (cancelled) return;
@@ -498,7 +502,7 @@ export function ListingDetailModal() {
         }
       })
       .catch(() => { if (!cancelled) setFallbackListing(null); });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; ac.abort(); };
   }, [detailListingId, cachedListing, listings]);
 
   // L-listings-merge4: 10번 주변 지하철 fetch
@@ -1113,7 +1117,9 @@ export function ListingDetailModal() {
           )}
           {galleryItems.length > 0 ? (
             <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white tabular-nums">
-              {galleryIndex + 1} / {galleryItems.length}
+              {/* [2026-05-22 정밀감사 M4] 영상/사진 fetch 순서에 따라 galleryIndex 가
+                  일시적으로 범위를 벗어나 "3 / 2" 처럼 표시되던 문제 — 카운터 clamp. */}
+              {Math.min(galleryIndex + 1, galleryItems.length)} / {galleryItems.length}
             </span>
           ) : (listing as any).photo_count > 0 ? (
             <span className="rounded-full bg-black/55 px-2.5 py-0.5 text-[10px] font-semibold text-white">
@@ -1350,7 +1356,9 @@ export function ListingDetailModal() {
             })()}
             {listing.business_type && <Row label="업종" value={listing.business_type} />}
             {listing.elevator != null && <Row label="엘리베이터" value={boolLabel(listing.elevator)} />}
-            <Row label="반려동물" value={listing.pet == null ? '협의' : (listing.pet ? '가능' : '협의')} />
+            {/* [2026-05-22 정밀감사 M2] pet=false(불가능)를 null(협의)과 똑같이
+                "협의" 로 표기하던 버그 — false 는 명시적 "불가능". */}
+            <Row label="반려동물" value={listing.pet == null ? '협의' : (listing.pet ? '가능' : '불가능')} />
           </dl>
         </div>
 
@@ -1829,6 +1837,9 @@ function buildAgentInfoFromProfile(ap: {
   registration_no: string | null;
   career_years: number | null;
 } | null): AgentInfo {
+  // [2026-05-22 정밀감사 M3] responseRate 98% / avgResponseMinutes 12분 은
+  //   실데이터 소스가 전혀 없는 하드코딩 허위 수치였음 (모든 중개사 동일 노출).
+  //   → null 로 변경. AgentContactModal 은 null 일 때 해당 통계줄을 숨김.
   const FALLBACK: AgentInfo = {
     name: '위시스부동산',
     officeName: '위시스부동산 공인중개사사무소',
@@ -1838,8 +1849,8 @@ function buildAgentInfoFromProfile(ap: {
     careerYears: null,
     phone: null,
     avatarUrl: null,
-    responseRate: 98,
-    avgResponseMinutes: 12,
+    responseRate: null,
+    avgResponseMinutes: null,
   };
   if (!ap) return FALLBACK;
   return {

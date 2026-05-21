@@ -61,6 +61,9 @@ export function NlSearchBar() {
   const inputRef = useRef<HTMLInputElement | null>(null);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // [2026-05-22 정밀감사 M9] in-flight 검색 fetch race + 언마운트 setState 방어.
+  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
 
   const setFilter = useMap2026Store((s) => s.setFilter);
   const setNlQuery = useMap2026Store((s) => s.setNlQuery);
@@ -74,11 +77,17 @@ export function NlSearchBar() {
   }, [error]);
 
   useEffect(() => () => {
+    mountedRef.current = false;
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    abortRef.current?.abort();
   }, []);
 
   async function submit(q: string) {
     if (!q.trim() || busy) return;
+    // 직전 in-flight 요청 취소 (연속 검색 race 방지)
+    abortRef.current?.abort();
+    const ctrl = new AbortController();
+    abortRef.current = ctrl;
     setBusy(true);
     setError(null);
     const intent = detectIntent(q);
@@ -86,7 +95,7 @@ export function NlSearchBar() {
       // ─── 1) 매물번호 ────────────────────────────────────
       if (intent.kind === 'listing') {
         // 매물 존재 확인 — /api/listings/[id] 호출
-        const res = await fetch(`/api/listings/${intent.id}`, { method: 'GET' });
+        const res = await fetch(`/api/listings/${intent.id}`, { method: 'GET', signal: ctrl.signal });
         if (res.status === 404) {
           setError(`매물 #${intent.id} 을(를) 찾을 수 없어요.`);
           return;
@@ -116,6 +125,7 @@ export function NlSearchBar() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ query: intent.query }),
+          signal: ctrl.signal,
         });
         if (!res.ok) throw new Error(`address ${res.status}`);
         const json = await res.json();
@@ -135,6 +145,7 @@ export function NlSearchBar() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: q }),
+        signal: ctrl.signal,
       });
       if (!res.ok) throw new Error(`nl ${res.status}`);
       const { filter, center, zoom } = await res.json();
@@ -144,10 +155,15 @@ export function NlSearchBar() {
       }
       setOpen(false);
     } catch (err) {
+      // 후속 검색이 이 요청을 취소한 경우 — 조용히 무시 (에러 표시 X).
+      if ((err as Error)?.name === 'AbortError') return;
       console.error('[NlSearchBar]', err);
-      setError('검색어를 이해하지 못했어요. 다른 표현으로 시도해 보세요.');
+      if (mountedRef.current) {
+        setError('검색어를 이해하지 못했어요. 다른 표현으로 시도해 보세요.');
+      }
     } finally {
-      setBusy(false);
+      // 더 새로운 요청이 시작됐으면 그 요청이 busy 를 관리 — 건드리지 않음.
+      if (mountedRef.current && abortRef.current === ctrl) setBusy(false);
     }
   }
 
