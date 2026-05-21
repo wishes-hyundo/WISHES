@@ -11,6 +11,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useWindowVirtualizer } from '@tanstack/react-virtual';
+import { useQueryClient } from '@tanstack/react-query';
+import { useSearchStore } from '../store';
 import { FILTER_OPTIONS, type SearchListing } from '../types';
 import { groupByLocation, mergeUnitDeals } from '../format';
 import { ListingCard } from './ListingCard';
@@ -25,6 +27,17 @@ import { SearchEditModal } from './SearchEditModal';
 import { SearchCreateModal } from './SearchCreateModal';
 import styles from './ResultsSplit.module.css';
 
+// C-5: 관심목록 localStorage 키를 로그인 사용자별로 분리 — 공용 PC 섞임 방지.
+function getFavKey(): string {
+  try {
+    const u = (sessionStorage.getItem('ws_user') || localStorage.getItem('ws_user') || '').trim();
+    if (!u) return 'wishes-search-favs:anon';
+    let h = 0;
+    for (let i = 0; i < u.length; i++) h = (h * 31 + u.charCodeAt(i)) | 0;
+    return `wishes-search-favs:${h}`;
+  } catch { return 'wishes-search-favs:anon'; }
+}
+
 export interface ResultsSplitProps {
   listings: SearchListing[];
   total: number;
@@ -35,7 +48,13 @@ export interface ResultsSplitProps {
 }
 
 export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore }: ResultsSplitProps) {
-  const [sort, setSort] = useState('latest');
+  // C-3: 정렬을 store filters.sort 로 — 선택 시 useSearchListings 가 재조회.
+  const sortVal = useSearchStore((st) => st.filters.sort) ?? 'latest';
+  const setFilter = useSearchStore((st) => st.setFilter);
+  // C-4: 수정·등록 후 목록 갱신용.
+  const queryClient = useQueryClient();
+  const invalidateListings = () =>
+    queryClient.invalidateQueries({ queryKey: ['search-2026', 'listings'] });
   const groups = useMemo(() => groupByLocation(mergeUnitDeals(listings)), [listings]);
   const listRef = useRef<HTMLDivElement>(null);
   const [detailListing, setDetailListing] = useState<SearchListing | null>(null);
@@ -53,7 +72,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   // 관심목록 영속화 (localStorage) — 하이드레이션 안전: 마운트 후 로드
   useEffect(() => {
     try {
-      const raw = localStorage.getItem('wishes-search-favs');
+      const raw = localStorage.getItem(getFavKey());
       if (raw) {
         const arr = JSON.parse(raw) as Array<[number, SearchListing]>;
         if (Array.isArray(arr) && arr.length) setFavMap(new Map(arr));
@@ -62,7 +81,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   }, []);
   useEffect(() => {
     try {
-      localStorage.setItem('wishes-search-favs', JSON.stringify([...favMap.entries()]));
+      localStorage.setItem(getFavKey(), JSON.stringify([...favMap.entries()]));
     } catch { /* noop */ }
   }, [favMap]);
   const toggleSelect = (id: number) => setSelectedIds((prev) => {
@@ -111,8 +130,8 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
             >+ 매물 등록</button>
             <select
               className={styles.sortSel}
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
+              value={sortVal}
+              onChange={(e) => setFilter('sort', e.target.value)}
               aria-label="정렬"
             >
               {FILTER_OPTIONS.sorts.map((s) => (
@@ -203,10 +222,14 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         <SearchEditModal
           listing={editListing}
           onClose={() => setEditListing(null)}
+          onSaved={() => invalidateListings()}
         />
       )}
       {createOpen && (
-        <SearchCreateModal onClose={() => setCreateOpen(false)} />
+        <SearchCreateModal
+          onClose={() => setCreateOpen(false)}
+          onCreated={() => invalidateListings()}
+        />
       )}
       {favOpen && (
         <SearchFavoritesModal

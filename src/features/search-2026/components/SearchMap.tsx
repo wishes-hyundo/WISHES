@@ -116,6 +116,7 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
     const container = containerRef.current;
     let disposed = false;
     let mapInst: unknown = null;
+    let detachIdle: (() => void) | null = null;
 
     (async () => {
       try {
@@ -170,6 +171,15 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
           setBbox((prev) => (sameBbox(prev, snapped) ? prev : snapped));
         };
         kakao.maps.event.addListener(map, 'idle', sync);
+        // C-1: cleanup 에서 제거할 수 있게 detach 함수 보관 (리스너 누수 방지).
+        detachIdle = () => {
+          try {
+            const ev = kakao.maps.event as unknown as {
+              removeListener?: (t: unknown, ty: string, h: (...a: any[]) => void) => void;
+            };
+            ev.removeListener?.(map, 'idle', sync);
+          } catch { /* noop */ }
+        };
         sync(); // 초기 1회 강제 호출
 
         setReady(true);
@@ -181,6 +191,7 @@ export function SearchMap({ onSelectListing }: SearchMapProps) {
 
     return () => {
       disposed = true;
+      if (detachIdle) { detachIdle(); detachIdle = null; }
       kakaoMapRef.current = null;
       setKakaoMap(null);
       if (container) {

@@ -24,6 +24,7 @@ type AuthState = 'loading' | 'nosession' | 'ok';
 export default function SearchPortalPage() {
   const [auth, setAuth] = useState<AuthState>('loading');
   const [view, setView] = useState<SearchView>('split');
+  const [qInput, setQInput] = useState('');
   const { filters, setFilter, reset } = useSearchStore();
 
   // 레거시 캐시 정리 (1회) — 구 content.js 시절 등록된 SW / Cache 비우기.
@@ -70,6 +71,10 @@ export default function SearchPortalPage() {
     }
   }, [auth]);
 
+  // C-2: 검색창 입력은 로컬 state 만 갱신 → API 미발화.
+  //   filters.q(검색 확정·초기화·칩 제거)가 바뀔 때만 입력칸 동기화.
+  useEffect(() => { setQInput(filters.q ?? ''); }, [filters.q]);
+
   const {
     listings, total, fetchNextPage, hasNextPage, isFetchingNextPage,
   } = useSearchListings(filters);
@@ -103,8 +108,8 @@ export default function SearchPortalPage() {
       }}
     >
       <SearchHeader
-        query={filters.q ?? ''}
-        onQueryChange={(v) => setFilter('q', v)}
+        query={qInput}
+        onQueryChange={setQInput}
         onReset={() => reset()}
         onSearch={(v) => setFilter('q', v)}
         view={view}

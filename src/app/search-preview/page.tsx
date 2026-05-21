@@ -9,7 +9,7 @@
  * 지도는 카카오맵 클러스터 통합 예정.
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SearchHeader } from '@/features/search-2026/components/SearchHeader';
 import { FilterBar } from '@/features/search-2026/components/FilterBar';
 import { ResultsSplit } from '@/features/search-2026/components/ResultsSplit';
@@ -40,10 +40,15 @@ const MOCK: SearchListing[] = [
 
 export default function SearchPreviewPage() {
   const [view, setView] = useState<SearchView>('split');
+  const [qInput, setQInput] = useState('');
   const { filters, setFilter, reset } = useSearchStore();
 
   // 실데이터 — 로그인(ws_session 쿠키) 시 /api/admin/listings/page 무한스크롤.
   //   미인증/실패 시 검증용 mock 으로 폴백 → preview 는 항상 화면이 보임.
+  // C-2: 검색창 입력은 로컬 state 만 갱신 → API 미발화.
+  //   filters.q(검색 확정·초기화·칩 제거)가 바뀔 때만 입력칸 동기화.
+  useEffect(() => { setQInput(filters.q ?? ''); }, [filters.q]);
+
   const {
     listings: realListings, total: realTotal,
     fetchNextPage, hasNextPage, isFetchingNextPage, isError,
@@ -62,8 +67,8 @@ export default function SearchPreviewPage() {
       }}
     >
       <SearchHeader
-        query={filters.q ?? ''}
-        onQueryChange={(v) => setFilter('q', v)}
+        query={qInput}
+        onQueryChange={setQInput}
         onReset={() => reset()}
         onSearch={(v) => setFilter('q', v)}
         view={view}
