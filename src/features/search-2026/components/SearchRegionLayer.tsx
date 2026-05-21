@@ -104,15 +104,6 @@ function cheapCentroid(poly: Poly): { lat: number; lng: number } {
   for (let i = 0; i < best.length; i += step) { sx += best[i][0]; sy += best[i][1]; n++; }
   return { lng: sx / Math.max(1, n), lat: sy / Math.max(1, n) };
 }
-// ring 점 솎기 — 동 폴리곤 렌더 비용 절감
-function decimateRing(ring: Ring, keepEvery: number): Ring {
-  if (keepEvery <= 1 || ring.length <= 16) return ring;
-  const out: Ring = [];
-  for (let i = 0; i < ring.length; i += keepEvery) out.push(ring[i]);
-  const last = ring[ring.length - 1];
-  if (out[out.length - 1] !== last) out.push(last);
-  return out;
-}
 
 function inRing(lng: number, lat: number, ring: Ring): boolean {
   let inside = false;
@@ -194,14 +185,6 @@ function polylabel(poly: Poly): { lat: number; lng: number } {
   return { lat: best.cy, lng: best.cx };
 }
 
-// ── 5분위 초플레스 ───────────────────────────────────────────
-const CHORO = ['#e4efe1', '#c1dbaf', '#8dbf80', '#56985e', '#2d6e42'];
-function choroClass(count: number, nonzeroSorted: number[]): number {
-  if (count <= 0 || nonzeroSorted.length === 0) return 0;
-  const rank = nonzeroSorted.findIndex((v) => v >= count);
-  const r = rank < 0 ? nonzeroSorted.length - 1 : rank;
-  return Math.min(4, 1 + Math.floor((r / Math.max(1, nonzeroSorted.length)) * 4));
-}
 function fmtCount(n: number): string {
   if (n >= 10000) {
     const v = (n / 10000).toFixed(1);
@@ -354,28 +337,26 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       } catch { /* 개수 실패해도 폴리곤은 그림 */ }
       if (disposed || !active) return;
 
-      // 3) 그리기
-      const nonzero = [...counts.values()].filter((v) => v > 0).sort((a, b) => a - b);
+      // 3) 그리기 — 정밀 경계(점 솎기 없음) + 균일 소프트 fill.
+      //   가격 초플레스(호갱노노식)는 후속 토글 레이어로 분리. 기본은 깔끔하게.
       clearPolys();
       const fds: FeatureDatum[] = [];
-      const keepEvery = tier === 'dong' ? 3 : 1;
 
       features.forEach((f, fi) => {
         const polys = fpolys[fi];
         const count = counts.get(fi) ?? 0;
-        const cls = choroClass(count, nonzero);
 
-        const baseFill = count > 0 ? 0.52 : 0.16;
+        const baseFill = count > 0 ? 0.20 : 0.05;
         for (const poly of polys) {
           const path = poly.map((ring) =>
-            decimateRing(ring, keepEvery).map(([lng, lat]) => new maps.LatLng(lat, lng)));
+            ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
           const kp = new maps.Polygon({
             path,
-            strokeWeight: 1.5,
-            strokeColor: '#3f6b4c',
-            strokeOpacity: 0.55,
+            strokeWeight: 1.6,
+            strokeColor: '#3a6b48',
+            strokeOpacity: 0.62,
             strokeStyle: 'solid',
-            fillColor: CHORO[cls],
+            fillColor: '#5a9e6e',
             fillOpacity: baseFill,
             zIndex: 1,
           });
