@@ -40,7 +40,7 @@ const MOCK: SearchListing[] = [
 
 export default function SearchPreviewPage() {
   const [view, setView] = useState<SearchView>('split');
-  const { filters } = useSearchStore();
+  const { filters, setFilter, reset } = useSearchStore();
 
   // 실데이터 — 로그인(ws_session 쿠키) 시 /api/admin/listings/page 무한스크롤.
   //   미인증/실패 시 검증용 mock 으로 폴백 → preview 는 항상 화면이 보임.
@@ -63,9 +63,9 @@ export default function SearchPreviewPage() {
     >
       <SearchHeader
         query={filters.q ?? ''}
-        onQueryChange={() => {}}
-        onReset={() => {}}
-        onSearch={(v) => console.log('[search-preview] 검색:', v)}
+        onQueryChange={(v) => setFilter('q', v)}
+        onReset={() => reset()}
+        onSearch={(v) => setFilter('q', v)}
         view={view}
         onViewChange={setView}
       />
