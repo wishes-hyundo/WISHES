@@ -264,7 +264,7 @@ interface FeatureDatum {
 }
 
 export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegionLayerProps) {
-  const polyRef = useRef<KakaoPolygon[]>([]);     // 강조 폴리곤 1개(멀티파트 포함)
+  const hoverPolyRef = useRef<KakaoPolygon[]>([]); // 마커 hover 시 표시되는 폴리곤
   const bubblesRef = useRef<KakaoOverlay[]>([]);
   const [fdata, setFdata] = useState<FeatureDatum[] | null>(null);
 
@@ -360,65 +360,47 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, tier, active, loadKey]);
 
-  // 지도 중심 키 — 팬 시 강조 폴리곤 갱신 트리거
-  const centerKey = bbox
-    ? `${((bbox.south + bbox.north) / 2).toFixed(3)},${((bbox.west + bbox.east) / 2).toFixed(3)}`
-    : '';
-
-  // ── Effect 2 — 강조 폴리곤 1개 (다방 방식: 지도 중심 구역만 칠함) ──
+  // ── Effect 2 — 개수 버블 + 마커 hover 시 그 구역 폴리곤 표시 ──
+  //   다방·네이버 방식: 평소엔 버블만. 버블에 마우스 올리면 그 동 경계가
+  //   떠서 "이 동이 어디부터 어디까지인지" 보임. (중심 추적 방식 폐기)
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
     const maps = win.kakao?.maps;
     if (!maps) return;
 
-    const clearPoly = () => {
-      for (const p of polyRef.current) { try { p.setMap(null); } catch { /* noop */ } }
-      polyRef.current = [];
+    const clearHover = () => {
+      for (const p of hoverPolyRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+      hoverPolyRef.current = [];
     };
-    clearPoly();
-    if (!active || !fdata || !bbox) return () => clearPoly();
-
-    const cLat = (bbox.south + bbox.north) / 2;
-    const cLng = (bbox.west + bbox.east) / 2;
-    const hit = fdata.find((d) => featureContains(d.polys, cLng, cLat));
-    if (!hit) return () => clearPoly();
-
-    let maxArea = 0;
-    for (const poly of hit.polys) maxArea = Math.max(maxArea, ringBboxArea(poly[0]));
-    const draw = hit.polys.filter((poly) => ringBboxArea(poly[0]) >= maxArea * 0.08);
-    for (const poly of (draw.length > 0 ? draw : hit.polys)) {
-      const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
-      const kp = new maps.Polygon({
-        path,
-        strokeWeight: 2.2,
-        strokeColor: '#2f7a47',
-        strokeOpacity: 0.92,
-        strokeStyle: 'solid',
-        fillColor: '#3f8a55',
-        fillOpacity: 0.15,
-        zIndex: 1,
-      });
-      kp.setMap(map);
-      polyRef.current.push(kp);
-    }
-
-    return () => clearPoly();
-  }, [map, active, fdata, centerKey]);
-
-  // ── Effect 3 — 개수 버블 (전 구역, 겹침 제거) ────────────────
-  useEffect(() => {
-    if (!map) return;
-    const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
-    const maps = win.kakao?.maps;
-    if (!maps) return;
-
-    const clearBubbles = () => {
+    const clearAll = () => {
+      clearHover();
       for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
       bubblesRef.current = [];
     };
-    clearBubbles();
-    if (!active || !fdata) return () => clearBubbles();
+    clearAll();
+    if (!active || !fdata) return () => clearAll();
+
+    const drawHover = (d: FeatureDatum) => {
+      let maxArea = 0;
+      for (const poly of d.polys) maxArea = Math.max(maxArea, ringBboxArea(poly[0]));
+      const draw = d.polys.filter((poly) => ringBboxArea(poly[0]) >= maxArea * 0.08);
+      for (const poly of (draw.length > 0 ? draw : d.polys)) {
+        const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
+        const kp = new maps.Polygon({
+          path,
+          strokeWeight: 2.4,
+          strokeColor: '#2f7a47',
+          strokeOpacity: 0.95,
+          strokeStyle: 'solid',
+          fillColor: '#3f8a55',
+          fillOpacity: 0.16,
+          zIndex: 2,
+        });
+        kp.setMap(map);
+        hoverPolyRef.current.push(kp);
+      }
+    };
 
     const proj = (map as { getProjection?: () => { pointFromCoords: (c: unknown) => { x: number; y: number } } })
       .getProjection?.();
@@ -446,6 +428,9 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       el.innerHTML =
         `<span class="srl-rcount">${fmtCount(d.count)}</span>` +
         `<span class="srl-rname">${d.name}</span>`;
+      // 마커 hover → 그 동 폴리곤 표시 / 떠나면 제거
+      el.addEventListener('mouseenter', () => { clearHover(); drawHover(d); });
+      el.addEventListener('mouseleave', () => { clearHover(); });
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         const m = map as KakaoMapLike;
@@ -468,14 +453,14 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       bubblesRef.current.push(ov);
     }
 
-    return () => clearBubbles();
+    return () => clearAll();
   }, [map, tier, active, fdata, level]);
 
   useEffect(() => {
     return () => {
-      for (const p of polyRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+      for (const p of hoverPolyRef.current) { try { p.setMap(null); } catch { /* noop */ } }
       for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
-      polyRef.current = [];
+      hoverPolyRef.current = [];
       bubblesRef.current = [];
     };
   }, []);
