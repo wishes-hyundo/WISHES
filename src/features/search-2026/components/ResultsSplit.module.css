@@ -10,7 +10,7 @@
 }
 
 /* 목록 컬럼 */
-.listCol { flex: 1 1 56%; min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.listCol { flex: 1 1 44%; min-width: 340px; display: flex; flex-direction: column; gap: 7px; }
 .resultHead {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 4px;
@@ -38,7 +38,7 @@
 
 /* 지도 컬럼 — 데스크탑에서 스크롤 시 고정 */
 .mapCol {
-  flex: 1 1 44%;
+  flex: 1 1 56%;
   position: sticky;
   top: 12px;
   height: calc(100vh - 24px);
