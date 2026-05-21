@@ -5,11 +5,11 @@
  *
  *   1단계 시·도  — /api/geo/sido    (전체 GeoJSON)
  *   2단계 시·군·구 — /api/geo/sigungu (전체 GeoJSON)
- *   3단계 읍·면·동 — /api/geo/legaldong/sigungu/{code} (viewport 시군구만 청크 lazy-load)
+ *   3단계 읍·면·동 — /geo/legaldong/{vsig5}.json (VWorld 법정동 정적, viewport 시군구 lazy-load)
  *
  * 설계:
  *   · map-2026 store 비의존 — /search 전용 자체완결.
- *   · 동 GeoJSON 통본은 34MB → viewport 에 걸친 시군구의 동 청크(~44KB)만 로드.
+ *   · 동 = VWorld LT_C_ADEMD_INFO 법정동(法定洞) 정적 GeoJSON. viewport 시군구만 lazy-load.
  *   · 폴리곤(구멍 포함) + 5분위 초플레스. polylabel 라벨배치 + 버블 겹침 제거.
  *   · 개수 = /api/map/clusters 를 point-in-polygon 으로 구역 배분.
  *   · /map 의 AdminRegionOverlay 는 손대지 않음.
@@ -53,14 +53,38 @@ async function loadGeo(tier: 'sido' | 'sigungu'): Promise<GeoCollection | null> 
   return p;
 }
 
-// 동 청크 — 시군구 code 별 lazy-load + 캐시
+// 동(법정동) — VWorld LT_C_ADEMD_INFO 정적 데이터 (P5-5, 2026-05-21)
+//   /geo/legaldong/manifest.json — 시군구 bbox 목록
+//   /geo/legaldong/{vsig5}.json  — 시군구별 법정동 FeatureCollection
+interface DongManifestEntry {
+  code: string; name: string; sido: string;
+  bbox: [number, number, number, number]; n: number;
+}
+let dongManifest: DongManifestEntry[] | null = null;
+let dongManifestPending: Promise<DongManifestEntry[]> | null = null;
+async function loadDongManifest(): Promise<DongManifestEntry[]> {
+  if (dongManifest) return dongManifest;
+  if (dongManifestPending) return dongManifestPending;
+  dongManifestPending = fetch('/geo/legaldong/manifest.json')
+    .then((r) => (r.ok ? r.json() : null))
+    .then((j) => {
+      const arr = Array.isArray(j?.sigungu) ? (j.sigungu as DongManifestEntry[]) : [];
+      dongManifest = arr;
+      return arr;
+    })
+    .catch(() => { dongManifest = []; return [] as DongManifestEntry[]; })
+    .finally(() => { dongManifestPending = null; });
+  return dongManifestPending;
+}
+
+// 동 청크 — 법정동 시군구 정적 GeoJSON lazy-load + 캐시
 const dongChunkCache = new Map<string, GeoCollection>();
 const dongChunkPending = new Map<string, Promise<GeoCollection | null>>();
 async function loadDongChunk(code: string): Promise<GeoCollection | null> {
   if (!/^\d{5}$/.test(code)) return null;
   if (dongChunkCache.has(code)) return dongChunkCache.get(code)!;
   if (dongChunkPending.has(code)) return dongChunkPending.get(code)!;
-  const p = fetch(`/api/geo/legaldong/sigungu/${code}`)
+  const p = fetch(`/geo/legaldong/${code}.json`)
     .then((r) => (r.ok ? r.json() : null))
     .then((j) => { if (j) dongChunkCache.set(code, j as GeoCollection); return (j as GeoCollection) ?? null; })
     .catch(() => null)
@@ -267,6 +291,9 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
   const bubblesRef = useRef<KakaoOverlay[]>([]);
   const highlightRef = useRef<KakaoPolygon[]>([]);
   const [fdata, setFdata] = useState<FeatureDatum[] | null>(null);
+  const [dongFeats, setDongFeats] = useState<GeoFeature[] | null>(null);
+  const [hoverPolys, setHoverPolys] = useState<Poly[] | null>(null);
+  const outlineRef = useRef<KakaoPolygon[]>([]);
 
   useEffect(() => { injectStyle(); }, []);
 
@@ -283,19 +310,22 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     let disposed = false;
     if (!active || (tier === 'dong' && !bbox)) {
       setFdata(null);
+      setDongFeats(null);
       return () => { disposed = true; };
     }
 
     (async () => {
       let features: GeoFeature[];
       if (tier === 'dong') {
-        const sigGeo = await loadGeo('sigungu');
-        if (disposed || !sigGeo || !active || !bbox) return;
+        const man = await loadDongManifest();
+        if (disposed || !active || !bbox) return;
         const codes: string[] = [];
-        for (const f of sigGeo.features) {
-          const code = String(f.properties.code ?? '');
-          if (!/^\d{5}$/.test(code)) continue;
-          if (bboxHit(featureBbox(f), bbox)) codes.push(code);
+        for (const m of man) {
+          const b = m.bbox;
+          if (!(b[2] < bbox.west || b[0] > bbox.east ||
+                b[3] < bbox.south || b[1] > bbox.north)) {
+            codes.push(m.code);
+          }
         }
         const chunks = await Promise.all(codes.slice(0, 16).map(loadDongChunk));
         if (disposed || !active) return;
@@ -305,10 +335,12 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
         const geo = await loadGeo(tier);
         if (disposed || !geo || !active) return;
         features = geo.features;
+        if (!disposed) setDongFeats(null);
       }
       if (tier === 'dong' && bbox) {
         features = features.filter((f) => bboxHit(featureBbox(f), bbox));
       }
+      if (tier === 'dong' && !disposed) setDongFeats(features);
       if (disposed || !active || features.length === 0) { if (!disposed) setFdata([]); return; }
 
       const fbboxes = features.map(featureBbox);
@@ -366,9 +398,8 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     : '';
 
   // ── Effect 2 — 현재 구역 강조 폴리곤 ─────────────────────────
-  //   네이버·피터팬 방식: 지도 중심이 속한 구역 1개를 깨끗하게 반투명 칠.
-  //   강조용은 무조건 정부 시도/시군구 GeoJSON 사용 — 합쳐 만든 동 경계처럼
-  //   깨지지 않음. 지도 이동하면 따라 갱신.
+  //   네이버·피터팬 방식: 중심(또는 동 tier 버블 hover)이 속한 구역 1개를
+  //   반투명 칠. 시·도/시·군·구는 정부 GeoJSON, 동은 VWorld 법정동 정적.
   useEffect(() => {
     if (!map) return;
     const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
@@ -383,32 +414,83 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     clearH();
     if (!active || !bbox) return () => { disposed = true; clearH(); };
 
-    const cLat = (bbox.south + bbox.north) / 2;
-    const cLng = (bbox.west + bbox.east) / 2;
-    (async () => {
-      const geo = await loadGeo(tier === 'sido' ? 'sido' : 'sigungu');
-      if (disposed || !geo || !active) return;
-      const hit = geo.features.find((f) => featureContains(featurePolys(f), cLng, cLat));
-      if (!hit || disposed) return;
-      for (const poly of featurePolys(hit)) {
+    const drawHL = (polys: Poly[]) => {
+      for (const poly of polys) {
         const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
         const kp = new maps.Polygon({
           path,
           strokeWeight: 2.4,
           strokeColor: '#2f7a47',
-          strokeOpacity: 0.9,
+          strokeOpacity: 0.95,
           strokeStyle: 'solid',
           fillColor: '#3f8a55',
-          fillOpacity: 0.13,
-          zIndex: 1,
+          fillOpacity: 0.16,
+          zIndex: 3,
         });
         kp.setMap(map);
         highlightRef.current.push(kp);
       }
+    };
+
+    const cLat = (bbox.south + bbox.north) / 2;
+    const cLng = (bbox.west + bbox.east) / 2;
+
+    if (tier === 'dong') {
+      // 버블 hover 시 그 법정동, 아니면 지도 중심이 속한 법정동
+      if (hoverPolys) { drawHL(hoverPolys); return () => { disposed = true; clearH(); }; }
+      if (dongFeats) {
+        const hit = dongFeats.find((f) => featureContains(featurePolys(f), cLng, cLat));
+        if (hit) drawHL(featurePolys(hit));
+      }
+      return () => { disposed = true; clearH(); };
+    }
+
+    (async () => {
+      const geo = await loadGeo(tier === 'sido' ? 'sido' : 'sigungu');
+      if (disposed || !geo || !active) return;
+      const hit = geo.features.find((f) => featureContains(featurePolys(f), cLng, cLat));
+      if (!hit || disposed) return;
+      drawHL(featurePolys(hit));
     })();
 
     return () => { disposed = true; clearH(); };
-  }, [map, tier, active, centerKey]);
+  }, [map, tier, active, centerKey, dongFeats, hoverPolys]);
+
+  // ── Effect 2b — 동 tier 법정동 경계선 (전 구역 옅은 외곽선) ──
+  //   다방·네이버처럼 viewport 안 모든 법정동의 경계를 옅게 그림 →
+  //   "신림동이 어디부터 어디까지인지" 한눈에.
+  useEffect(() => {
+    if (!map) return;
+    const win = window as unknown as { kakao?: { maps?: KakaoMapsNs } };
+    const maps = win.kakao?.maps;
+    if (!maps) return;
+
+    const clearO = () => {
+      for (const p of outlineRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+      outlineRef.current = [];
+    };
+    clearO();
+    if (!active || tier !== 'dong' || !dongFeats) return () => clearO();
+
+    for (const f of dongFeats) {
+      for (const poly of featurePolys(f)) {
+        const path = poly.map((ring) => ring.map(([lng, lat]) => new maps.LatLng(lat, lng)));
+        const kp = new maps.Polygon({
+          path,
+          strokeWeight: 1.3,
+          strokeColor: '#5a8f6c',
+          strokeOpacity: 0.55,
+          strokeStyle: 'solid',
+          fillColor: '#3f8a55',
+          fillOpacity: 0.035,
+          zIndex: 1,
+        });
+        kp.setMap(map);
+        outlineRef.current.push(kp);
+      }
+    }
+    return () => clearO();
+  }, [map, tier, active, dongFeats]);
 
   // ── Effect 3 — 개수 버블 (전 구역, 겹침 제거) ────────────────
   useEffect(() => {
@@ -450,6 +532,11 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       el.innerHTML =
         `<span class="srl-rcount">${fmtCount(d.count)}</span>` +
         `<span class="srl-rname">${d.name}</span>`;
+      if (tier === 'dong') {
+        const hp = d.polys;
+        el.addEventListener('mouseenter', () => setHoverPolys(hp));
+        el.addEventListener('mouseleave', () => setHoverPolys(null));
+      }
       el.addEventListener('click', (e) => {
         e.stopPropagation();
         const m = map as KakaoMapLike;
@@ -478,8 +565,10 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
   useEffect(() => {
     return () => {
       for (const p of highlightRef.current) { try { p.setMap(null); } catch { /* noop */ } }
+      for (const p of outlineRef.current) { try { p.setMap(null); } catch { /* noop */ } }
       for (const o of bubblesRef.current) { try { o.setMap(null); } catch { /* noop */ } }
       highlightRef.current = [];
+      outlineRef.current = [];
       bubblesRef.current = [];
     };
   }, []);
