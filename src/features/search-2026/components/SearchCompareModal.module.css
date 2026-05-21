@@ -1,0 +1,80 @@
+/* SearchCompareModal — 매물 비교 (P6-2) · iOS 26.5 글래스 */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1300;
+  background: rgba(14, 26, 18, 0.42);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: cbIn 0.18s ease both;
+}
+@keyframes cbIn { from { opacity: 0 } to { opacity: 1 } }
+.panel {
+  width: 100%;
+  max-width: 760px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: rgba(250, 252, 249, 0.92);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 24px 64px rgba(12, 30, 18, 0.30);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Pretendard', sans-serif;
+  animation: cpIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes cpIn { from { opacity: 0; transform: translateY(16px) scale(0.98) } to { opacity: 1; transform: none } }
+.head {
+  display: flex;
+  align-items: center;
+  padding: 14px 14px 14px 18px;
+  border-bottom: 0.5px solid rgba(20, 40, 26, 0.12);
+  flex: none;
+}
+.title { font-size: 16px; font-weight: 700; color: #1c2a22; margin: 0; flex: 1; letter-spacing: -0.02em; }
+.close {
+  width: 34px; height: 34px; border-radius: 999px; border: none;
+  background: #eef2ee; color: #2c3a31; font-size: 16px; cursor: pointer;
+}
+.close:active { transform: scale(0.92); }
+.notice { padding: 48px 18px; text-align: center; font-size: 13.5px; color: #8a988e; }
+.scroll { overflow: auto; -webkit-overflow-scrolling: touch; }
+.table { border-collapse: separate; border-spacing: 0; font-size: 13px; width: 100%; }
+.rowLabel {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  background: #eef2ee;
+  font-weight: 600;
+  color: #6b7b70;
+  padding: 10px 12px;
+  text-align: left;
+  white-space: nowrap;
+  min-width: 78px;
+  border-bottom: 0.5px solid rgba(20, 40, 26, 0.08);
+}
+.colHead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: rgba(244, 247, 243, 0.96);
+  font-weight: 700;
+  color: #2c7a4b;
+  padding: 11px 12px;
+  min-width: 132px;
+  border-bottom: 0.5px solid rgba(20, 40, 26, 0.12);
+}
+.cornerCell { position: sticky; left: 0; top: 0; z-index: 3; background: #eef2ee; }
+.cell {
+  padding: 10px 12px;
+  color: #26342b;
+  font-weight: 500;
+  border-bottom: 0.5px solid rgba(20, 40, 26, 0.08);
+  border-left: 0.5px solid rgba(20, 40, 26, 0.06);
+  letter-spacing: -0.01em;
+}

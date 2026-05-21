@@ -18,6 +18,7 @@ import { ListingGroup } from './ListingGroup';
 import { SearchMap } from './SearchMap';
 import { SearchDetailModal } from './SearchDetailModal';
 import { SearchActionBar } from './SearchActionBar';
+import { SearchCompareModal } from './SearchCompareModal';
 import styles from './ResultsSplit.module.css';
 
 export interface ResultsSplitProps {
@@ -39,6 +40,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   const openById = (mid: number) => { setDetailId(mid); setDetailListing(null); };
   const closeDetail = () => { setDetailListing(null); setDetailId(null); };
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
+  const [compareOpen, setCompareOpen] = useState(false);
   const toggleSelect = (id: number) => setSelectedIds((prev) => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -137,7 +139,14 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         allSelected={allSelected}
         onToggleAll={toggleAll}
         onClear={() => setSelectedIds(new Set())}
+        onCompare={() => setCompareOpen(true)}
       />
+      {compareOpen && (
+        <SearchCompareModal
+          listings={selectedListings}
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
     </div>
   );
 }

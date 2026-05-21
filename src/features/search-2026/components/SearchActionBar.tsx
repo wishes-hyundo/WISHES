@@ -17,6 +17,7 @@ export interface SearchActionBarProps {
   allSelected: boolean;
   onToggleAll: () => void;
   onClear: () => void;
+  onCompare: () => void;
 }
 
 function csvCell(v: unknown): string {
@@ -89,7 +90,7 @@ function printRows(rows: SearchListing[]): void {
 }
 
 export function SearchActionBar({
-  selected, totalVisible, allSelected, onToggleAll, onClear,
+  selected, totalVisible, allSelected, onToggleAll, onClear, onCompare,
 }: SearchActionBarProps) {
   const n = selected.length;
   return (
@@ -107,6 +108,12 @@ export function SearchActionBar({
         <button type="button" className={styles.clear} onClick={onClear}>해제</button>
       )}
       <span className={styles.spacer} />
+      <button
+        type="button"
+        className={styles.act}
+        disabled={n < 2}
+        onClick={onCompare}
+      >⊞ 비교</button>
       <button
         type="button"
         className={styles.act}
