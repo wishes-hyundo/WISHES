@@ -40,8 +40,8 @@ function pinWidth(count: number): number {
   if (count < 1000) return 60;
   return 68;
 }
-const PIN_RATIO = 142 / 124;  // viewBox 높이/폭
-const TIP_YANCHOR = 128 / 142; // tip(y=118) — viewBox(-10..132) 내 비율 ≈ 0.901
+const PIN_RATIO = 152 / 134;  // viewBox 높이/폭
+const TIP_YANCHOR = 117 / 152; // tip(y=104) — viewBox(-13..139) 내 비율 ≈ 0.770
 
 function formatCount(n: number): string {
   if (n < 1000) return String(n);
@@ -52,44 +52,42 @@ function formatCount(n: number): string {
   return Math.floor(n / 1000) + 'K';
 }
 
-// 리퀴드 글래스 물방울 핀 SVG (iOS 26 스타일, 2026-05-21 재디자인)
-//   head(반지름36, 중심 50,48) + tip(50,118) 한 경로. viewBox/경로 불변
-//   → PIN_RATIO·TIP_YANCHOR·radiusOf 상수 그대로 유효.
-//   마감: 수직 루미넌스 그라디언트 + 좌상단 글래스 광택 + 위→아래
-//   페이드되는 림 라이트(하드 테두리 X) + 부드러운 확산 그림자.
+// 애플지도 스타일 둥근 풍선 핀 (2026-05-21 재디자인)
+//   플럼프한 둥근 헤드(반지름40,중심50,44) + 짧은 꼬리(끝50,104).
+//   불투명 바디 + 넓고 은은한 글래스 면발광 + 살짝의 톱 림라이트.
+//   싼티 방지: 그라디언트 대비 약하게, 광택은 넓고 부드럽게, 그림자
+//   는 옅게 떠 있는 느낌. 귀엽고 러블리하게 둥글둥글.
 function pinSvg(count: number, single: boolean): string {
   const label = formatCount(count);
-  const fs = label.length >= 4 ? 23 : label.length === 3 ? 27 : 31;
+  const fs = label.length >= 4 ? 22 : label.length === 3 ? 26 : 30;
   const inner = single
-    ? '<circle cx="50" cy="48" r="13" fill="#ffffff"/>' +
-      '<circle cx="50" cy="48" r="5.4" fill="#1f9a55"/>'
-    : `<text x="50" y="50" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Display','Pretendard',sans-serif" font-weight="640" font-size="${fs}" letter-spacing="-1.4" fill="#ffffff">${label}</text>`;
-  const D = 'M50,118 C39,96 14,74 14,48 A36,36 0 1,1 86,48 C86,74 61,96 50,118 Z';
+    ? '<circle cx="50" cy="44" r="12.5" fill="#ffffff"/>' +
+      '<circle cx="50" cy="44" r="4.9" fill="#1d9355"/>'
+    : `<text x="50" y="45.5" text-anchor="middle" dominant-baseline="central" font-family="-apple-system,BlinkMacSystemFont,'SF Pro Rounded','SF Pro Display','Pretendard',sans-serif" font-weight="640" font-size="${fs}" letter-spacing="-1.2" fill="#ffffff">${label}</text>`;
+  const D = 'M50,104 C36,84 14,73 14,44 A40,40 0 1,1 86,44 C86,73 64,84 50,104 Z';
   return (
-    '<svg viewBox="-12 -10 124 142" xmlns="http://www.w3.org/2000/svg">' +
+    '<svg viewBox="-17 -13 134 152" xmlns="http://www.w3.org/2000/svg">' +
     '<defs>' +
     '<linearGradient id="wg" x1="0" y1="0" x2="0" y2="1">' +
-    '<stop offset="0%" stop-color="#62cf8a"/>' +
-    '<stop offset="48%" stop-color="#2ba75b"/>' +
-    '<stop offset="100%" stop-color="#138049"/>' +
+    '<stop offset="0%" stop-color="#39b074"/>' +
+    '<stop offset="100%" stop-color="#1c9255"/>' +
     '</linearGradient>' +
-    '<linearGradient id="wr" x1="0" y1="0" x2="0" y2="1">' +
-    '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.92"/>' +
-    '<stop offset="50%" stop-color="#ffffff" stop-opacity="0.14"/>' +
-    '<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>' +
-    '</linearGradient>' +
-    '<radialGradient id="wh" cx="37%" cy="26%" r="60%">' +
-    '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.95"/>' +
-    '<stop offset="55%" stop-color="#ffffff" stop-opacity="0.16"/>' +
+    '<radialGradient id="wh" cx="50%" cy="31%" r="62%">' +
+    '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.40"/>' +
+    '<stop offset="62%" stop-color="#ffffff" stop-opacity="0.06"/>' +
     '<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>' +
     '</radialGradient>' +
-    '<filter id="ws" x="-65%" y="-50%" width="230%" height="220%">' +
-    '<feDropShadow dx="0" dy="4" stdDeviation="4.5" flood-color="#0a2c19" flood-opacity="0.30"/>' +
+    '<linearGradient id="wr" x1="0" y1="0" x2="0" y2="1">' +
+    '<stop offset="0%" stop-color="#ffffff" stop-opacity="0.55"/>' +
+    '<stop offset="44%" stop-color="#ffffff" stop-opacity="0"/>' +
+    '</linearGradient>' +
+    '<filter id="ws" x="-70%" y="-55%" width="240%" height="235%">' +
+    '<feDropShadow dx="0" dy="3.5" stdDeviation="4" flood-color="#0c3a22" flood-opacity="0.26"/>' +
     '</filter>' +
     '</defs>' +
     `<path d="${D}" fill="url(#wg)" filter="url(#ws)"/>` +
-    '<ellipse cx="39" cy="35" rx="24.5" ry="16.5" fill="url(#wh)"/>' +
-    `<path d="${D}" fill="none" stroke="url(#wr)" stroke-width="1.5"/>` +
+    '<ellipse cx="50" cy="40" rx="32" ry="25" fill="url(#wh)"/>' +
+    `<path d="${D}" fill="none" stroke="url(#wr)" stroke-width="1.4"/>` +
     inner +
     '</svg>'
   );
