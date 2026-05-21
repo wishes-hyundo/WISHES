@@ -16,6 +16,39 @@ export function formatManwon(n?: number | null): string {
   return n.toLocaleString();
 }
 
+/**
+ * 주소 표기 — base(주소/제목)와 detail(동·호 또는 address_detail)을 중복 없이 결합.
+ * raw address 가 이미 층·동 정보를 품고 있어 detail 을 그대로 붙이면 토큰이 중복된다.
+ *  (a) 토큰 겹침 결합: base 의 끝 N 토큰 == detail 의 앞 N 토큰이면 겹친 만큼 제거.
+ *  (b) 결합 후 연속 중복 토큰 축약.
+ * base 가 이미 detail 을 부분 문자열로 포함하면 결합 자체를 생략.
+ */
+export function displayAddress(l: SearchListing): string {
+  const base = String(l.address || l.title || '주소 미상').trim();
+  const detail = ([l.building_dong, l.building_ho].filter(Boolean).join(' ').trim())
+    || String(l.address_detail ?? '').trim();
+
+  let combined = base;
+  if (detail && !base.includes(detail)) {
+    const bt = base.split(/\s+/).filter(Boolean);
+    const dt = detail.split(/\s+/).filter(Boolean);
+    // (a) 토큰 겹침 결합 — base 끝 N == detail 앞 N
+    let overlap = 0;
+    const maxN = Math.min(bt.length, dt.length);
+    for (let n = maxN; n >= 1; n--) {
+      if (bt.slice(bt.length - n).join(' ') === dt.slice(0, n).join(' ')) { overlap = n; break; }
+    }
+    combined = [...bt, ...dt.slice(overlap)].join(' ');
+  }
+  // (b) 연속 중복 토큰 축약
+  const tokens = combined.split(/\s+/).filter(Boolean);
+  const dedup: string[] = [];
+  for (const t of tokens) {
+    if (dedup[dedup.length - 1] !== t) dedup.push(t);
+  }
+  return dedup.join(' ');
+}
+
 /** 매물 거래유형에 맞춘 가격 문자열 */
 export function formatPrice(l: SearchListing): string {
   const deal = l.deal || '';

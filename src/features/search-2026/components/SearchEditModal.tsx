@@ -8,7 +8,7 @@
  * 기준: ★search_완전기능명세서.md §5-4.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SearchListing } from '../types';
 import styles from './SearchEditModal.module.css';
 import { adminFetch } from '@/lib/adminFetch';
@@ -31,7 +31,7 @@ type FieldDef = {
 const FIELDS: FieldDef[] = [
   { key: 'status', label: '상태', kind: 'select', opts: ['공개', '비공개', '계약중', '계약완료'] },
   { key: 'deal', label: '거래유형', kind: 'select', opts: ['월세', '전세', '전월세', '매매'] },
-  { key: 'type', label: '매물종류', kind: 'select', opts: ['원룸', '오피스텔', '아파트', '사무실', '상가', '빌라', '토지'] },
+  { key: 'type', label: '매물종류', kind: 'select', opts: ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '빌라', '사무실', '상가', '토지'] },
   { key: 'building_name', label: '건물명', kind: 'text' },
   { key: 'title', label: '제목', kind: 'text', full: true },
   { key: 'address', label: '주소', kind: 'text', full: true },
@@ -62,12 +62,32 @@ export function SearchEditModal({ listing, onClose, onSaved }: SearchEditModalPr
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) { onClose(); return; }
+      // 포커스 트랩 — Tab 이 패널 밖으로 나가지 않도록 순환
+      if (e.key === 'Tab' && panelRef.current) {
+        const f = panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const items = (Array.from(f) as HTMLElement[]).filter((el) => !el.hasAttribute('disabled'));
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
@@ -112,11 +132,18 @@ export function SearchEditModal({ listing, onClose, onSaved }: SearchEditModalPr
   };
 
   return (
-    <div className={styles.backdrop} onClick={() => { if (!saving) onClose(); }} role="dialog" aria-modal="true">
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.backdrop} onClick={() => { if (!saving) onClose(); }}>
+      <div
+        ref={panelRef}
+        className={styles.panel}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="매물 수정"
+      >
         <div className={styles.head}>
           <h2 className={styles.title}>매물 수정 · {listing.id}</h2>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">✕</button>
+          <button ref={closeRef} type="button" className={styles.close} onClick={onClose} aria-label="닫기">✕</button>
         </div>
         <div className={styles.body}>
           <SearchPhotoManager listingId={listing.id} />

@@ -141,6 +141,23 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
           </div>
         </div>
 
+        {groups.length === 0 ? (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minHeight: 220,
+              padding: '40px 16px',
+              textAlign: 'center',
+              fontSize: 13,
+              color: '#8b9097',
+              letterSpacing: '-0.01em',
+            }}
+          >
+            검색 결과가 없습니다 · 필터를 조정해 보세요
+          </div>
+        ) : (
         <div ref={listRef} className={styles.cards} style={{ height: virt.getTotalSize() }}>
           {vItems.map((vi) => {
             const g = groups[vi.index];
@@ -172,6 +189,7 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
             );
           })}
         </div>
+        )}
         {loadingMore && <div className={styles.loadingMore}>매물 더 불러오는 중…</div>}
       </div>
 
@@ -188,6 +206,16 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         pool={flatListings}
         onOpenListing={openListing}
         onEdit={(l) => setEditListing(l)}
+        favorited={detailListing ? favMap.has(detailListing.id) : false}
+        onToggleFavorite={() => {
+          if (!detailListing) return;
+          setFavMap((prev) => {
+            const m = new Map(prev);
+            if (m.has(detailListing.id)) m.delete(detailListing.id);
+            else m.set(detailListing.id, detailListing);
+            return m;
+          });
+        }}
       />
 
       <SearchActionBar

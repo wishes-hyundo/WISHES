@@ -30,6 +30,8 @@ export default function SearchPortalPage() {
   // 레거시 캐시 정리 (1회) — 구 content.js 시절 등록된 SW / Cache 비우기.
   useEffect(() => {
     try {
+      if (sessionStorage.getItem('ws_sw_cleaned') === '1') return;
+      sessionStorage.setItem('ws_sw_cleaned', '1');
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.getRegistrations()
           .then((regs) => regs.forEach((r) => { r.unregister().catch(() => {}); }))
@@ -76,7 +78,7 @@ export default function SearchPortalPage() {
   useEffect(() => { setQInput(filters.q ?? ''); }, [filters.q]);
 
   const {
-    listings, total, fetchNextPage, hasNextPage, isFetchingNextPage,
+    listings, total, fetchNextPage, hasNextPage, isFetchingNextPage, isError,
   } = useSearchListings(filters);
 
   if (auth !== 'ok') {
@@ -94,6 +96,49 @@ export default function SearchPortalPage() {
         }}
       >
         {auth === 'loading' ? '불러오는 중…' : '로그인 페이지로 이동 중…'}
+      </div>
+    );
+  }
+
+  // H-2: 인증 게이트는 통과했으나(ws_token 존재) 토큰 만료 등으로 목록 API 가
+  //   401 실패 → 빈 화면 대신 명확한 재로그인 안내.
+  if (isError) {
+    return (
+      <div
+        style={{
+          minHeight: '100dvh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 14,
+          background: 'linear-gradient(180deg,#EDEEF0,#E7E9EC)',
+          fontFamily:
+            "-apple-system,BlinkMacSystemFont,'SF Pro Text','Pretendard','Malgun Gothic',sans-serif",
+          color: '#3a443d',
+        }}
+      >
+        <div style={{ fontSize: 14, fontWeight: 600 }}>
+          세션이 만료되었어요. 다시 로그인해 주세요.
+        </div>
+        <a
+          href="/login?redirect=/search"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: 38,
+            padding: '0 20px',
+            borderRadius: 10,
+            background: '#2c7a4b',
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 700,
+            textDecoration: 'none',
+          }}
+        >
+          다시 로그인
+        </a>
       </div>
     );
   }

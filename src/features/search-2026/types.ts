@@ -151,8 +151,7 @@ export const FILTER_OPTIONS = {
   options: [
     { key: 'building_photo', label: '건물사진있음' },
     { key: 'interior_photo', label: '내부사진있음' },
-    { key: 'video', label: '동영상있음' },
-    { key: 'short_term', label: '단기임대' },
+    // M-2: video/short_term — 서버 라우트 미지원이라 동작 안 함. 서버 지원 추가 시 복원.
     { key: 'parking_available', label: '주차가능' },
     { key: 'empty_now', label: '현재공실' },
     { key: 'balcony', label: '베란다' },

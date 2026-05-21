@@ -78,7 +78,9 @@ export function SearchFilterChips() {
   NUM_FIELDS.forEach(([key, label, suffix]) => {
     const v = filters[key] as number | undefined;
     if (v != null) {
-      chips.push({ id: `n:${String(key)}`, label: `${label} ${v}${suffix}`, remove: () => setFilter(key, undefined) });
+      // builtYearMax 는 (연도-1) 규약 — 칩 표기는 +1 하여 FilterBar 와 일치시킨다.
+      const shown = key === 'builtYearMax' ? v + 1 : v;
+      chips.push({ id: `n:${String(key)}`, label: `${label} ${shown}${suffix}`, remove: () => setFilter(key, undefined) });
     }
   });
 

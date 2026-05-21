@@ -28,7 +28,11 @@ export function useSearchListings(filters: SearchFilters, perPage: number = DEFA
       !/\b40[13]\b/.test(String((err as Error)?.message ?? '')) && count < 2,
   });
 
-  const listings: SearchListing[] = (query.data?.pages ?? []).flatMap((p) => p.listings);
+  // 페이지 경계에서 같은 id 가 중복될 수 있어 — 첫 등장만 남기고 중복 제거.
+  const seenIds = new Set<number>();
+  const listings: SearchListing[] = (query.data?.pages ?? [])
+    .flatMap((p) => p.listings)
+    .filter((l) => (seenIds.has(l.id) ? false : (seenIds.add(l.id), true)));
   const total: number = query.data?.pages?.[0]?.total ?? 0;
 
   return { ...query, listings, total };

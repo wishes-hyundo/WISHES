@@ -7,7 +7,7 @@
  * iOS 26.5 글래스. 첫 열·헤더 sticky. 기준: ★search_완전기능명세서.md §5-1.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import type { SearchListing } from '../types';
 import { formatArea, formatFloor, priceLines } from '../format';
 import styles from './SearchCompareModal.module.css';
@@ -44,11 +44,32 @@ const ROWS: Array<[string, (l: SearchListing) => string]> = [
 ];
 
 export function SearchCompareModal({ listings, onClose }: SearchCompareModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      // 포커스 트랩 — Tab 이 패널 밖으로 나가지 않도록 순환
+      if (e.key === 'Tab' && panelRef.current) {
+        const f = panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const items = (Array.from(f) as HTMLElement[]).filter((el) => !el.hasAttribute('disabled'));
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
@@ -58,11 +79,18 @@ export function SearchCompareModal({ listings, onClose }: SearchCompareModalProp
   const cols = listings.slice(0, 5);
 
   return (
-    <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.backdrop} onClick={onClose}>
+      <div
+        ref={panelRef}
+        className={styles.panel}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="매물 비교"
+      >
         <div className={styles.head}>
           <h2 className={styles.title}>매물 비교 {cols.length}건</h2>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">✕</button>
+          <button ref={closeRef} type="button" className={styles.close} onClick={onClose} aria-label="닫기">✕</button>
         </div>
         {cols.length < 2 ? (
           <p className={styles.notice}>비교하려면 매물을 2건 이상 선택하세요. (최대 5건)</p>

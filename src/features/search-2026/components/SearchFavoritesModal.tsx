@@ -9,7 +9,7 @@
 
 import { useEffect } from 'react';
 import type { SearchListing } from '../types';
-import { priceLines } from '../format';
+import { displayAddress, priceLines } from '../format';
 import styles from './SearchFavoritesModal.module.css';
 
 export interface SearchFavoritesModalProps {
@@ -48,8 +48,7 @@ export function SearchFavoritesModal({ listings, onClose, onRemove }: SearchFavo
                 <div key={l.id} className={styles.row}>
                   <div className={styles.rowMain}>
                     <div className={styles.rowAddr}>
-                      {l.address || l.title || '주소 미상'}
-                      {l.address_detail ? ` ${l.address_detail}` : ''}
+                      {displayAddress(l)}
                     </div>
                     <div className={styles.rowSub}>{sub}</div>
                   </div>

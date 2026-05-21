@@ -9,10 +9,10 @@
  * 닫기 3방법(✕·배경·ESC). 기준: ★search_완전기능명세서.md §4.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SearchListing } from '../types';
 import { useListingDetail } from '../hooks';
-import { formatArea, formatFloor, priceLines } from '../format';
+import { formatArea, formatFloor, priceLines, displayAddress } from '../format';
 import styles from './SearchDetailModal.module.css';
 
 export interface SearchDetailModalProps {
@@ -25,6 +25,10 @@ export interface SearchDetailModalProps {
   onOpenListing?: (l: SearchListing) => void;
   /** 매물 수정 진입 */
   onEdit?: (l: SearchListing) => void;
+  /** 관심 매물 여부 (부모 제어 — 미지정 시 로컬 상태로 동작) */
+  favorited?: boolean;
+  /** 관심 토글 콜백 (부모 제어 — 미지정 시 로컬 상태로 동작) */
+  onToggleFavorite?: () => void;
 }
 
 const DEAL_TONE: Record<string, string> = {
@@ -37,12 +41,7 @@ const DEAL_TONE: Record<string, string> = {
 type Cell = { label: string; value: string };
 
 function fullAddr(l: SearchListing): string {
-  const base = String(l.address || l.title || '주소 미상').trim();
-  const detail =
-    [l.building_dong, l.building_ho].filter(Boolean).join(' ').trim() ||
-    String(l.address_detail ?? '').trim();
-  if (detail && !base.includes(detail)) return `${base} ${detail}`;
-  return base;
+  return displayAddress(l);
 }
 
 function builtYear(l: SearchListing): string {
@@ -85,11 +84,24 @@ function fmtDate(v: unknown): string {
   return t.slice(0, 16).replace('T', ' ');
 }
 
+/** 매물 연락처 번호 추출 — 여러 후보 필드명 대응 (없으면 '') */
+function contactNumber(l: SearchListing): string {
+  const raw =
+    l['contact'] ?? l['contact_number'] ?? l['phone'] ??
+    l['contact_phone'] ?? l['tel'] ?? l['phone_number'];
+  return raw ? String(raw).trim() : '';
+}
+
 export function SearchDetailModal({
-  listing, id, onClose, pool, onOpenListing, onEdit,
+  listing, id, onClose, pool, onOpenListing, onEdit, favorited, onToggleFavorite,
 }: SearchDetailModalProps) {
   const [fav, setFav] = useState(false);
+  // favorited prop 이 주어지면 부모 제어, 아니면 로컬 상태 fallback
+  const favControlled = favorited !== undefined;
+  const isFav = favControlled ? favorited : fav;
   const [copied, setCopied] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
   const [agentOpen, setAgentOpen] = useState(false);
   const [memo, setMemo] = useState('');
   const [memoTags, setMemoTags] = useState<string[]>([]);
@@ -100,10 +112,29 @@ export function SearchDetailModal({
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { onClose(); return; }
+      // 포커스 트랩 — Tab 이 패널 밖으로 나가지 않도록 순환
+      if (e.key === 'Tab' && panelRef.current) {
+        const f = panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const items = (Array.from(f) as HTMLElement[]).filter((el) => !el.hasAttribute('disabled'));
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // 마운트 시 닫기 버튼에 포커스
+    closeRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
@@ -153,18 +184,29 @@ export function SearchDetailModal({
       <span className={styles.headSpacer} />
       <button
         type="button"
-        className={`${styles.iconBtn} ${styles.fav} ${fav ? styles.on : ''}`}
-        onClick={() => setFav((v) => !v)}
+        className={`${styles.iconBtn} ${styles.fav} ${isFav ? styles.on : ''}`}
+        onClick={() => {
+          if (favControlled) onToggleFavorite?.();
+          else setFav((v) => !v);
+        }}
         aria-label="관심"
-      >{fav ? '♥' : '♡'}</button>
-      <button type="button" className={styles.iconBtn} onClick={onClose} aria-label="닫기">✕</button>
+        aria-pressed={isFav}
+      >{isFav ? '♥' : '♡'}</button>
+      <button ref={closeRef} type="button" className={styles.iconBtn} onClick={onClose} aria-label="닫기">✕</button>
     </div>
   );
 
   if (!l) {
     return (
-      <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
-        <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+      <div className={styles.backdrop} onClick={onClose}>
+        <div
+          ref={panelRef}
+          className={styles.panel}
+          onClick={(e) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label="매물 상세 정보"
+        >
           <div className={styles.grip} aria-hidden="true" />
           {header(id ?? null)}
           <div className={styles.scroll}>
@@ -184,6 +226,7 @@ export function SearchDetailModal({
   const lines = priceLines(l);
   const road = String(l.road_address ?? '').trim();
   const status = String(l.status ?? '').trim();
+  const contact = contactNumber(l);
 
   const mk = (label: string, value: string | number | null | undefined): Cell | null => {
     const v = value == null ? '' : String(value).trim();
@@ -280,8 +323,15 @@ export function SearchDetailModal({
   };
 
   return (
-    <div className={styles.backdrop} onClick={onClose} role="dialog" aria-modal="true">
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.backdrop} onClick={onClose}>
+      <div
+        ref={panelRef}
+        className={styles.panel}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="매물 상세 정보"
+      >
         <div className={styles.grip} aria-hidden="true" />
         {header(l.id)}
 
@@ -460,8 +510,18 @@ export function SearchDetailModal({
         </div>
 
         <div className={styles.actionBar}>
-          <button type="button" className={styles.actBtn}>📞 전화문의</button>
-          <button type="button" className={`${styles.actBtn} ${styles.actBtnPrimary}`}>💬 문자문의</button>
+          <button
+            type="button"
+            className={styles.actBtn}
+            disabled={!contact}
+            onClick={() => { if (contact) window.location.href = `tel:${contact}`; }}
+          >📞 전화문의</button>
+          <button
+            type="button"
+            className={`${styles.actBtn} ${styles.actBtnPrimary}`}
+            disabled={!contact}
+            onClick={() => { if (contact) window.location.href = `sms:${contact}`; }}
+          >💬 문자문의</button>
         </div>
       </div>
     </div>

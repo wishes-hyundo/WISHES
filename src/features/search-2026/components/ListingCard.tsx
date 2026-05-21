@@ -10,7 +10,7 @@
  */
 
 import type { SearchListing } from '../types';
-import { formatArea, formatFloor, priceLines } from '../format';
+import { displayAddress, formatArea, formatFloor, priceLines } from '../format';
 import styles from './ListingCard.module.css';
 
 export interface ListingCardProps {
@@ -37,11 +37,7 @@ function sourceLetter(site?: string | null): string | null {
 
 /** 주소 + 동/호수 — 중복 없이 결합 */
 function fullAddr(l: SearchListing): string {
-  const base = l.address || l.title || '주소 미상';
-  const detail = [l.building_dong, l.building_ho].filter(Boolean).join(' ').trim()
-    || String(l.address_detail ?? '').trim();
-  if (detail && !base.includes(detail)) return `${base} ${detail}`;
-  return base;
+  return displayAddress(l);
 }
 
 function builtYearText(l: SearchListing): string {

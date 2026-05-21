@@ -85,7 +85,16 @@ export function SearchHeader({
           />
         </div>
 
-        <button type="button" className={styles.iconBtn} aria-label="초기화" onClick={onReset}>
+        <button
+          type="button"
+          className={styles.iconBtn}
+          aria-label="초기화"
+          onClick={() => {
+            // 비제어 모드일 때 내부 입력 상태도 함께 비움
+            if (!isControlled) setInternal('');
+            onReset?.();
+          }}
+        >
           <svg width="15" height="15" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path
               d="M11.4 7A4.4 4.4 0 1 1 9.7 3.5"

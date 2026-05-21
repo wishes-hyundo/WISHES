@@ -312,6 +312,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
     if (!win.kakao?.maps) return;
 
     let disposed = false;
+    const ctrl = new AbortController();  // M-3: 빠른 줌 전환 시 in-flight fetch 취소
     if (!active || (tier === 'dong' && !bbox)) {
       setFdata(null);
       setDongFeats(null);
@@ -331,7 +332,8 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
             codes.push(m.code);
           }
         }
-        const chunks = await Promise.all(codes.slice(0, 16).map(loadDongChunk));
+        // M-4: dong 청크 캡 16->28 — 대도시 viewport 가 16개 시군구 초과 시 일부 누락 방지.
+        const chunks = await Promise.all(codes.slice(0, 28).map(loadDongChunk));
         if (disposed || !active) return;
         features = [];
         for (const ch of chunks) if (ch?.features) features.push(...ch.features);
@@ -355,7 +357,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
         const url = tier === 'dong' && bbox
           ? `/api/map/clusters?swLat=${bbox.south.toFixed(3)}&swLng=${bbox.west.toFixed(3)}&neLat=${bbox.north.toFixed(3)}&neLng=${bbox.east.toFixed(3)}&zoom=${COUNT_ZOOM.dong}`
           : `/api/map/clusters?swLat=32.9&swLng=124.5&neLat=38.8&neLng=131.0&zoom=${COUNT_ZOOM[tier]}`;
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: ctrl.signal });
         if (res.ok) {
           const json = await res.json();
           const clusters: Array<{ lat: number; lng: number; count: number }> =
@@ -392,7 +394,7 @@ export function SearchRegionLayer({ map, tier, active, level, bbox }: SearchRegi
       setFdata(fds);
     })();
 
-    return () => { disposed = true; };
+    return () => { disposed = true; ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map, tier, active, loadKey]);
 

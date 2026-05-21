@@ -8,7 +8,7 @@
  * 기준: ★search_완전기능명세서.md §5-4 / createListingSchema (route.ts).
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from './SearchEditModal.module.css';
 import { adminFetch } from '@/lib/adminFetch';
 
@@ -29,9 +29,9 @@ type FieldDef = {
 // type 은 createListingSchema enum 과 일치해야 함 (route.ts L37)
 const FIELDS: FieldDef[] = [
   { key: 'type', label: '매물종류', kind: 'select', required: true,
-    opts: ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '상가', '사무실'] },
+    opts: ['원룸', '투룸', '쓰리룸', '오피스텔', '아파트', '빌라', '사무실', '상가', '토지'] },
   { key: 'deal', label: '거래유형', kind: 'select', required: true,
-    opts: ['전세', '월세', '매매'] },
+    opts: ['월세', '전세', '전월세', '매매'] },
   { key: 'title', label: '제목', kind: 'text', full: true, required: true },
   { key: 'address', label: '주소', kind: 'text', full: true, required: true },
   { key: 'address_detail', label: '동·호수', kind: 'text' },
@@ -55,12 +55,32 @@ export function SearchCreateModal({ onClose, onCreated }: SearchCreateModalProps
   const [form, setForm] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
+  const panelRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && !saving) onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !saving) { onClose(); return; }
+      // 포커스 트랩 — Tab 이 패널 밖으로 나가지 않도록 순환
+      if (e.key === 'Tab' && panelRef.current) {
+        const f = panelRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        const items = (Array.from(f) as HTMLElement[]).filter((el) => !el.hasAttribute('disabled'));
+        if (items.length === 0) return;
+        const first = items[0];
+        const last = items[items.length - 1];
+        if (e.shiftKey && document.activeElement === first) {
+          e.preventDefault(); last.focus();
+        } else if (!e.shiftKey && document.activeElement === last) {
+          e.preventDefault(); first.focus();
+        }
+      }
+    };
     document.addEventListener('keydown', onKey);
     const prev = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    closeRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = prev;
@@ -109,11 +129,18 @@ export function SearchCreateModal({ onClose, onCreated }: SearchCreateModalProps
   };
 
   return (
-    <div className={styles.backdrop} onClick={() => { if (!saving) onClose(); }} role="dialog" aria-modal="true">
-      <div className={styles.panel} onClick={(e) => e.stopPropagation()}>
+    <div className={styles.backdrop} onClick={() => { if (!saving) onClose(); }}>
+      <div
+        ref={panelRef}
+        className={styles.panel}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="새 매물 등록"
+      >
         <div className={styles.head}>
           <h2 className={styles.title}>새 매물 등록</h2>
-          <button type="button" className={styles.close} onClick={onClose} aria-label="닫기">✕</button>
+          <button ref={closeRef} type="button" className={styles.close} onClick={onClose} aria-label="닫기">✕</button>
         </div>
         <div className={styles.body}>
           <div className={styles.grid}>

@@ -106,13 +106,22 @@ export function SearchActionBar({
         </span>
         전체선택
       </button>
-      <span className={styles.count}>
-        {n > 0 ? `${n}건 선택` : `${totalVisible.toLocaleString()}건`}
-      </span>
+      {n > 0 ? (
+        <span className={styles.count}>
+          <strong>{n.toLocaleString()}</strong>건 선택
+        </span>
+      ) : (
+        <span className={styles.countTotal}>
+          전체 {totalVisible.toLocaleString()}건
+        </span>
+      )}
       {n > 0 && (
         <button type="button" className={styles.clear} onClick={onClear}>해제</button>
       )}
       <span className={styles.spacer} />
+      {n === 0 && (
+        <span className={styles.hint}>매물을 선택하세요</span>
+      )}
       <button
         type="button"
         className={styles.act}

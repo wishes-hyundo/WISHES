@@ -114,7 +114,7 @@ export async function fetchSearchListings(
     total: json.total ?? 0,
     page: json.page ?? page,
     perPage: json.size ?? perPage,
-    hasMore: json.has_more ?? false,
+    hasMore: json.has_more ?? ((json.data?.length ?? 0) >= perPage),
     ms: json._ms,
   };
 }
