@@ -19,6 +19,7 @@ import { SearchMap } from './SearchMap';
 import { SearchDetailModal } from './SearchDetailModal';
 import { SearchActionBar } from './SearchActionBar';
 import { SearchCompareModal } from './SearchCompareModal';
+import { SearchFavoritesModal } from './SearchFavoritesModal';
 import styles from './ResultsSplit.module.css';
 
 export interface ResultsSplitProps {
@@ -41,6 +42,8 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
   const closeDetail = () => { setDetailListing(null); setDetailId(null); };
   const [selectedIds, setSelectedIds] = useState<Set<number>>(() => new Set());
   const [compareOpen, setCompareOpen] = useState(false);
+  const [favMap, setFavMap] = useState<Map<number, SearchListing>>(() => new Map());
+  const [favOpen, setFavOpen] = useState(false);
   const toggleSelect = (id: number) => setSelectedIds((prev) => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id); else next.add(id);
@@ -140,11 +143,29 @@ export function ResultsSplit({ listings, total, onLoadMore, hasMore, loadingMore
         onToggleAll={toggleAll}
         onClear={() => setSelectedIds(new Set())}
         onCompare={() => setCompareOpen(true)}
+        favCount={favMap.size}
+        onAddFav={() => setFavMap((prev) => {
+          const m = new Map(prev);
+          selectedListings.forEach((l) => m.set(l.id, l));
+          return m;
+        })}
+        onOpenFav={() => setFavOpen(true)}
       />
       {compareOpen && (
         <SearchCompareModal
           listings={selectedListings}
           onClose={() => setCompareOpen(false)}
+        />
+      )}
+      {favOpen && (
+        <SearchFavoritesModal
+          listings={[...favMap.values()]}
+          onClose={() => setFavOpen(false)}
+          onRemove={(id) => setFavMap((prev) => {
+            const m = new Map(prev);
+            m.delete(id);
+            return m;
+          })}
         />
       )}
     </div>

@@ -18,6 +18,9 @@ export interface SearchActionBarProps {
   onToggleAll: () => void;
   onClear: () => void;
   onCompare: () => void;
+  onAddFav: () => void;
+  onOpenFav: () => void;
+  favCount: number;
 }
 
 function csvCell(v: unknown): string {
@@ -91,6 +94,7 @@ function printRows(rows: SearchListing[]): void {
 
 export function SearchActionBar({
   selected, totalVisible, allSelected, onToggleAll, onClear, onCompare,
+  onAddFav, onOpenFav, favCount,
 }: SearchActionBarProps) {
   const n = selected.length;
   return (
@@ -114,6 +118,17 @@ export function SearchActionBar({
         disabled={n < 2}
         onClick={onCompare}
       >⊞ 비교</button>
+      <button
+        type="button"
+        className={styles.act}
+        disabled={n === 0}
+        onClick={onAddFav}
+      >♡ 관심+</button>
+      <button
+        type="button"
+        className={styles.act}
+        onClick={onOpenFav}
+      >♡ 관심목록{favCount > 0 ? ` ${favCount}` : ''}</button>
       <button
         type="button"
         className={styles.act}
